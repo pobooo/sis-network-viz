@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pulse Strategy for Suppressing Spreading on Networks</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] },
+    svg: { fontCache: 'global' },
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --ink: #1a1916;
+    --muted: #5c5852;
+    --line: #ddd8cf;
+    --paper: #f7f3ec;
+    --card: #fffcf7;
+    --accent: #8f1d1d;
+    --navy: #1f3d5c;
+    --infected: #b3261e;
+    --susceptible: #e9e3d8;
+    --edge: rgba(92, 88, 82, 0.18);
+    --pulse: #b3261e;
+    --poisson: #1f3d5c;
+    --gold: #b07d1a;
+    --grid: #ebe6dc;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", "Noto Serif SC", serif;
+    --sans: "Avenir Next", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); background: var(--paper); color: var(--ink); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); }
+  header .inner {
+    max-width: 1320px; margin: 0 auto; padding: 28px 28px 22px;
+    display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+  }
+  header .titles { flex: 1; min-width: 280px; }
+  header .kicker { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+  header .kicker a { color: inherit; text-decoration: none; }
+  header .kicker a:hover { text-decoration: underline; }
+  header h1 {
+    margin: 0 0 8px; font-family: var(--serif); font-size: clamp(26px, 3.4vw, 36px);
+    font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
+  }
+  header .sub { margin: 0; color: var(--muted); font-size: 15px; }
+  header .intro {
+    flex-basis: 100%; margin: 0; padding-top: 14px; border-top: 1px solid var(--line);
+    font-size: 14px; line-height: 1.7; color: var(--ink);
+  }
+  header .meta { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+  header .meta a { color: inherit; }
+  .lang-switch { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .lang-switch button {
+    background: transparent; color: var(--muted); border: none; border-radius: 0;
+    padding: 5px 11px; font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .lang-switch button.active { background: var(--ink); color: var(--card); }
+  main {
+    display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start;
+    padding: 24px 28px 48px; max-width: 1320px; margin: 0 auto;
+  }
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+    position: sticky; top: 16px;
+  }
+  .panel h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  label b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  select {
+    width: 100%; padding: 8px 10px; background: #fff; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; font: 14px var(--sans);
+  }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+  button {
+    padding: 10px 12px; border-radius: 6px; border: 1px solid transparent; cursor: pointer;
+    font: 600 13px var(--sans); transition: filter .15s, background .15s;
+  }
+  button.primary { background: var(--accent); color: #fff; grid-column: span 2; }
+  button.secondary { background: var(--card); color: var(--ink); border-color: var(--line); }
+  button.secondary:hover:not(:disabled) { border-color: var(--ink); }
+  button.sweep { background: var(--card); color: var(--ink); border-color: var(--ink); grid-column: span 2; }
+  button.sweep:hover:not(:disabled) { background: var(--ink); color: var(--card); }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.link {
+    background: none; border: none; padding: 0; margin-left: 6px; font: 500 12px var(--sans);
+    color: var(--navy); text-decoration: underline; cursor: pointer;
+  }
+  .status { margin-top: 12px; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .kv {
+    display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0;
+    border-bottom: 1px dashed var(--line); color: var(--muted);
+  }
+  .kv:last-child { border-bottom: none; }
+  .kv b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .content { display: grid; gap: 16px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 12px; }
+  .card h4 { margin: 0 0 8px; font: 600 14px var(--sans); color: var(--ink); }
+  .net-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .net-wrap { height: 400px; display: flex; flex-direction: column; }
+  .net-wrap canvas { flex: 1; min-height: 0; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart { height: 320px; display: flex; flex-direction: column; }
+  .chart canvas { flex: 1; min-height: 0; }
+  #c-phase { cursor: crosshair; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend { display: flex; gap: 16px; font-size: 13px; margin-top: 8px; color: var(--muted); flex-wrap: wrap; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .dash { display: inline-block; width: 16px; height: 0; border-top: 2px dashed; margin-right: 6px; vertical-align: 3px; }
+  .line { display: inline-block; width: 16px; height: 0; border-top: 2px solid; margin-right: 6px; vertical-align: 3px; }
+  .formulas { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; font-family: var(--serif); }
+  .formulas h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .formulas .block { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px; }
+  .formulas .col { font-size: 15px; line-height: 1.6; min-width: 0; }
+  .formulas .col b { color: var(--navy); }
+  .formulas mjx-container { color: var(--ink) !important; overflow-x: auto; overflow-y: hidden; }
+  .formulas .muted { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .formulas .note-box {
+    margin-top: 14px; padding: 10px 14px; background: color-mix(in srgb, var(--accent) 5%, var(--card));
+    border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  }
+  .formulas .note-box b:first-child { color: var(--accent); }
+  .formulas .refs { margin-top: 14px; font-size: 14px; color: var(--muted); line-height: 1.7; }
+  .formulas .refs a { color: var(--navy); }
+  @media (max-width: 900px) {
+    main { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    main > * { min-width: 0; }
+    header .inner { padding: 20px 16px 16px; }
+    .panel { position: static; }
+    .net-wrap { height: 320px; }
+    .net-row, .chart-row, .formulas .block { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <div class="titles">
+        <p class="kicker">Interactive demo · <a href="./" data-i18n="nav.sis">SIS 传播 demo</a></p>
+        <h1 data-i18n="title">脉冲恢复策略：抑制网络上的传播</h1>
+        <p class="sub" data-i18n="subtitle">同步治愈比异步治愈更高效</p>
+      </div>
+      <div class="meta">
+        <span>by <a href="https://qiangliu.net">Qiang Liu</a></span>
+        <div class="lang-switch">
+          <button data-lang="zh">中</button>
+          <button data-lang="en">EN</button>
+        </div>
+      </div>
+      <p class="intro" data-i18n-html="intro"></p>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <h3 data-i18n="panel.network">网络</h3>
+      <label data-i18n="panel.type">网络类型</label>
+      <select id="net-type">
+        <option value="er" data-i18n="net.er">随机图 (Erdős–Rényi)</option>
+        <option value="ba" data-i18n="net.ba">无标度网络 (Barabási–Albert)</option>
+        <option value="ws" data-i18n="net.ws">小世界网络 (Watts–Strogatz)</option>
+      </select>
+      <label><span data-i18n="panel.n">节点数 N</span>: <b id="n-val">300</b></label>
+      <input type="range" id="n" min="50" max="2000" step="50" value="300" />
+      <label><span data-i18n="panel.k">平均度 ⟨k⟩</span>: <b id="k-val">6</b></label>
+      <input type="range" id="k" min="2" max="12" step="2" value="6" />
+
+      <h3 style="margin-top:22px" data-i18n="panel.process">传播与恢复</h3>
+      <label><span data-i18n="panel.tau">有效感染率 τ = β/δ</span>: <b id="tau-val">0.250</b></label>
+      <input type="range" id="tau" min="0" max="1" step="0.005" value="0.25" />
+      <label><span data-i18n="panel.p">脉冲覆盖率 p</span>: <b id="p-val">0.632</b><button class="link" id="btn-pstar" data-i18n="btn.pstar">设为 1−1/e</button></label>
+      <input type="range" id="p" min="0" max="0.99" step="0.001" value="0.632" />
+      <label><span data-i18n="panel.init">初始感染比例</span>: <b id="init-val">10%</b></label>
+      <input type="range" id="init" min="1" max="100" step="1" value="10" />
+      <label><span data-i18n="panel.speed">播放速度</span>: <b id="speed-val">2×</b></label>
+      <input type="range" id="speed" min="0.5" max="10" step="0.5" value="2" />
+
+      <div class="btn-group">
+        <button class="primary" id="btn-run" data-i18n="btn.start">开始</button>
+        <button class="secondary" id="btn-reset" data-i18n="btn.reset">重新感染</button>
+        <button class="secondary" id="btn-regen" data-i18n="btn.regen">新网络</button>
+        <button class="sweep" id="btn-sweep" data-i18n="btn.sweep">模拟相图</button>
+      </div>
+      <div class="status" id="status"></div>
+
+      <h3 style="margin-top:22px" data-i18n="panel.stats">网络与阈值</h3>
+      <div class="kv"><span data-i18n="stat.edges">边数</span><b id="s-edges">–</b></div>
+      <div class="kv"><span>λ<sub>1</sub></span><b id="s-lambda">–</b></div>
+      <div class="kv"><span data-i18n-html="stat.poisson"></span><b id="s-tauc">–</b></div>
+      <div class="kv"><span data-i18n-html="stat.pulse"></span><b id="s-taucp">–</b></div>
+      <div class="kv"><span data-i18n="stat.cost">脉冲/泊松 恢复操作数</span><b id="s-cost">–</b></div>
+      <div class="kv"><span data-i18n="stat.t">时间 t</span><b id="s-t">–</b></div>
+      <div class="kv"><span data-i18n="stat.prevPoisson">感染比例（泊松恢复）</span><b id="s-prev-m">–</b></div>
+      <div class="kv"><span data-i18n="stat.prevPulse">感染比例（脉冲恢复）</span><b id="s-prev-p">–</b></div>
+    </aside>
+
+    <section class="content">
+      <div class="net-row">
+        <div class="card net-wrap">
+          <h4 data-i18n="net.poisson">泊松恢复（马尔可夫 SIS）</h4>
+          <canvas id="net-m"></canvas>
+        </div>
+        <div class="card net-wrap">
+          <h4 data-i18n="net.pulse">脉冲恢复（每隔 1/δ 同步治愈）</h4>
+          <canvas id="net-p"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="card chart">
+          <h4 data-i18n="chart.time">感染比例随时间变化</h4>
+          <canvas id="c-time"></canvas>
+          <div class="legend">
+            <span><span class="line" style="border-color:var(--poisson)"></span><span data-i18n="legend.poisson">泊松恢复</span></span>
+            <span><span class="line" style="border-color:var(--pulse)"></span><span data-i18n="legend.pulse">脉冲恢复</span></span>
+          </div>
+        </div>
+        <div class="card chart">
+          <h4 data-i18n="chart.phase">相图（点击设置 p 和 τ）</h4>
+          <canvas id="c-phase"></canvas>
+          <div class="legend">
+            <span><span class="line" style="border-color:var(--pulse)"></span><span data-i18n-html="legend.taucp"></span></span>
+            <span><span class="dash" style="border-color:var(--poisson)"></span><span data-i18n-html="legend.tauc"></span></span>
+            <span><span class="dot" style="background:var(--infected)"></span><span data-i18n="legend.persist">模拟：持续</span></span>
+            <span><span class="dot" style="border:1.5px solid var(--muted)"></span><span data-i18n="legend.extinct">模拟：灭绝</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="formulas">
+        <h3 data-i18n="fx.title">模型与公式</h3>
+        <div class="block">
+          <div class="col" data-i18n-html="fx.model"></div>
+          <div class="col" data-i18n-html="fx.threshold"></div>
+        </div>
+        <div class="block" style="margin-top:14px">
+          <div class="col" data-i18n-html="fx.equiv"></div>
+          <div class="col" data-i18n-html="fx.optimal"></div>
+        </div>
+        <div class="muted" style="margin-top:12px" data-i18n-html="fx.impl"></div>
+        <div class="muted note-box" data-i18n-html="fx.warning"></div>
+        <div class="refs" data-i18n-html="fx.refs"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// ---------------------------------------------------------------------------
+// i18n
+// ---------------------------------------------------------------------------
+const PULSES = 30;
+const REFS = [
+  'Q. Liu, X. Zhou, P. Van Mieghem. <a href="https://qiangliu.net/publications/EPL2019_pulseSIS_strategy.pdf">Pulse Strategy for Suppressing Spreading on Networks</a>. EPL, 127: 38001, 2019. <a href="https://doi.org/10.1209/0295-5075/127/38001">doi</a>',
+  'P. Van Mieghem, J. Omic, R. Kooij. <a href="https://doi.org/10.1109/TNET.2008.925623">Virus Spread in Networks</a>. IEEE/ACM Transactions on Networking, 17(1): 1–14, 2009.',
+  'Z. Agur, L. Cojocaru, G. Mazor, R. M. Anderson, Y. L. Danon. <a href="https://doi.org/10.1073/pnas.90.24.11698">Pulse Mass Measles Vaccination across Age Cohorts</a>. Proceedings of the National Academy of Sciences, 90(24): 11698–11702, 1993.',
+  'Q. Liu. <a href="https://qiangliu.net/publications/Dissertation_Qiang_Liu.pdf">Spreading on Networks</a>. PhD dissertation, Delft University of Technology, 2019.',
+];
+
+const I18N = {
+  zh: {
+    'nav.sis': '← SIS 传播 demo',
+    'title': '脉冲恢复策略：抑制网络上的传播',
+    'subtitle': '同步治愈比异步治愈更高效：覆盖率 p ≈ 0.632 的脉冲恢复与泊松恢复效果相当',
+    'intro': '传统的 SIS 模型假设恢复在时间上均匀、异步地发生：每个感染节点各自以速率 δ 恢复，刚被治愈的节点仍可能被尚未治愈的邻居重新感染。脉冲策略则每隔一段时间同步治愈一批节点，相邻节点更可能同时被治愈，从而减少邻居之间的反复感染。控制麻疹的脉冲疫苗接种、印度控制脊髓灰质炎的全国免疫日都属于这类策略。本页在同一网络上同时模拟两种恢复方式，并与 Liu、Zhou 与 Van Mieghem (2019) 给出的平均场阈值对照：覆盖率 p = 1 − 1/e ≈ 0.632 的脉冲恢复与泊松恢复阈值相同，却只需约 63.2% 的恢复操作。',
+    'panel.network': '网络', 'panel.type': '网络类型', 'panel.n': '节点数 N', 'panel.k': '平均度 ⟨k⟩',
+    'net.er': '随机图 (Erdős–Rényi)', 'net.ba': '无标度网络 (Barabási–Albert)', 'net.ws': '小世界网络 (Watts–Strogatz)',
+    'panel.process': '传播与恢复', 'panel.tau': '有效感染率 τ = β/δ', 'panel.p': '脉冲覆盖率 p',
+    'panel.init': '初始感染比例', 'panel.speed': '播放速度',
+    'btn.pstar': '设为 1−1/e',
+    'btn.start': '开始', 'btn.pause': '暂停', 'btn.reset': '重新感染', 'btn.regen': '新网络', 'btn.sweep': '模拟相图',
+    'panel.stats': '网络与阈值', 'stat.edges': '边数',
+    'stat.poisson': '泊松恢复阈值 1/λ<sub>1</sub>',
+    'stat.pulse': '脉冲恢复阈值 τ<sub>c</sub><sup>p</sup>',
+    'stat.cost': '恢复操作数 脉冲/泊松',
+    'stat.t': '时间 t', 'stat.prevPoisson': '感染比例（泊松恢复）', 'stat.prevPulse': '感染比例（脉冲恢复）',
+    'net.poisson': '泊松恢复（马尔可夫 SIS）', 'net.pulse': '脉冲恢复（每隔 1/δ 同步治愈）',
+    'chart.time': '感染比例随时间变化', 'chart.phase': '相图（点击设置 p 和 τ）',
+    'legend.poisson': '泊松恢复', 'legend.pulse': '脉冲恢复',
+    'legend.taucp': 'τ<sub>c</sub><sup>p</sup> = ln(1/(1−p))/λ<sub>1</sub>',
+    'legend.tauc': '1/λ<sub>1</sub>',
+    'legend.persist': '模拟：持续', 'legend.extinct': '模拟：灭绝',
+    'phase.endemic': '传播持续', 'phase.healthy': '全部健康',
+    'axis.t': 't（单位 1/δ）',
+    'status.extinct': '两个过程的感染都已灭绝。点“重新感染”再试。',
+    'status.sweeping': '模拟相图… {i}/{n}',
+    'status.sweepDone': '相图模拟完成：每个点从一半节点感染开始，运行 {T} 个脉冲周期。',
+    'fx.title': '模型与公式',
+    'fx.model': '<b>脉冲恢复模型</b>　感染节点以速率 $\\beta$ 感染每个易感邻居（泊松过程）。恢复不再随时间均匀发生，而是每隔 $1/\\delta$ 同步进行一次：在 $t=k/\\delta$ 时，每个感染节点以概率 $p$ 被治愈。两次脉冲之间只有感染，是 SI 过程。有效感染率 $\\tau=\\beta/\\delta$，这里取 $\\delta=1$。<div class="muted">对照的马尔可夫 SIS 中，每个感染节点以速率 $\\delta$ 独立、异步地恢复（泊松恢复）。</div>',
+    'fx.threshold': '<b>脉冲恢复的平均场阈值</b>　两次脉冲之间，平均场方程在 $v=0$ 附近线性化为 $\\dot{v}=\\beta A v$，一个周期后 $v\\mapsto e^{\\tau A}v$；脉冲再乘以 $1-p$：$$v\\Big(\\tfrac{k+1}{\\delta}\\Big)=(1-p)\\,e^{\\tau A}\\,v\\Big(\\tfrac{k}{\\delta}\\Big)$$令最大特征值 $(1-p)e^{\\tau\\lambda_1}=1$，得到 $$\\tau_c^{p}=\\frac{1}{\\lambda_1}\\ln\\frac{1}{1-p}$$<div class="muted">$\\tau&gt;\\tau_c^p$ 时传播持续，$\\tau&lt;\\tau_c^p$ 时最终全部健康。泊松恢复的 NIMFA 阈值是 $1/\\lambda_1$。</div>',
+    'fx.equiv': '<b>节省约 36.8% 的恢复操作</b>　当 $\\ln\\frac{1}{1-p}=1$，即 $p=1-1/e\\approx0.632$ 时，$\\tau_c^p=1/\\lambda_1$，两种策略的阈值相同，这与网络结构无关。两者的恢复速率都是 $\\delta$，每个节点单位时间的恢复操作数分别为 $\\delta p$ 和 $\\delta$，所以脉冲策略只需约 63.2% 的操作。<div class="muted">论文的模拟显示，即使在阈值以上，$p=0.632$ 时两种策略的感染比例也相当：泊松恢复的曲线正好位于脉冲恢复锯齿曲线的中间。</div>',
+    'fx.optimal': '<b>如何选择 δ 和 p</b>　在阈值上 $\\delta=\\lambda_1\\beta/\\ln\\frac{1}{1-p}$，单位时间的恢复操作总数为 $$\\delta pN=\\lambda_1\\beta N\\,\\frac{p}{\\ln\\frac{1}{1-p}}$$<div class="muted">$p/\\ln\\frac{1}{1-p}$ 在 $(0,1)$ 上单调减小，所以最省的做法是尽量提高覆盖率 $p$、同时降低脉冲频率 $\\delta$，即沿相图中的红色曲线向右移动。覆盖率受限时，就取可达到的最大 $p$ 和相应的 $\\delta$。</div>',
+    'fx.impl': '实现：两个过程在同一网络、同一组初始感染节点上同时模拟，全部在浏览器中完成。泊松恢复用 Gillespie 算法精确模拟马尔可夫 SIS；脉冲恢复在两次脉冲之间用 Gillespie 算法精确模拟 SI 过程，在 $t=1,2,\\dots$ 时让每个感染节点以概率 $p$ 恢复。$\\lambda_1$ 用幂迭代求得。',
+    'fx.warning': '<b>⚠ 注意</b>：相图中的点是有限时长的模拟：每个 $(p,\\tau)$ 从一半节点感染开始，运行 ' + PULSES + ' 个脉冲周期后仍有感染记为“持续”。阈值附近感染衰减或增长都很慢，这些点的结果不稳定；每次生成的网络也是随机的。',
+    'fx.refs': '参考：<br>' + REFS.join('<br>'),
+  },
+  en: {
+    'nav.sis': '← SIS epidemics demo',
+    'title': 'Pulse Strategy for Suppressing Spreading on Networks',
+    'subtitle': 'Synchronous curing is more efficient than asynchronous curing: pulse curing with coverage p ≈ 0.632 matches Poisson curing',
+    'intro': 'The classical SIS model assumes that curing happens uniformly and asynchronously over time: each infected node recovers on its own at rate δ, so a node that has just been cured can be reinfected by a neighbor that is still infected. A pulse strategy instead cures a batch of nodes synchronously at regular intervals, so neighbors are more likely to be cured at the same time and reinfections between them are reduced. Pulse vaccination against measles and India’s National Immunization Days against polio are examples. This page simulates both kinds of curing on the same network and compares them with the mean-field threshold of Liu, Zhou and Van Mieghem (2019): pulse curing with coverage p = 1 − 1/e ≈ 0.632 has the same threshold as Poisson curing, while using only about 63.2% of the curing operations.',
+    'panel.network': 'Network', 'panel.type': 'Network type', 'panel.n': 'Nodes N', 'panel.k': 'Mean degree ⟨k⟩',
+    'net.er': 'Random graph (Erdős–Rényi)', 'net.ba': 'Scale-free (Barabási–Albert)', 'net.ws': 'Small world (Watts–Strogatz)',
+    'panel.process': 'Spreading & curing', 'panel.tau': 'Effective infection rate τ = β/δ', 'panel.p': 'Pulse coverage p',
+    'panel.init': 'Initially infected', 'panel.speed': 'Playback speed',
+    'btn.pstar': 'Set to 1−1/e',
+    'btn.start': 'Start', 'btn.pause': 'Pause', 'btn.reset': 'Reinfect', 'btn.regen': 'New network', 'btn.sweep': 'Simulate phase diagram',
+    'panel.stats': 'Network & thresholds', 'stat.edges': 'Edges',
+    'stat.poisson': 'Poisson-curing threshold 1/λ<sub>1</sub>',
+    'stat.pulse': 'Pulse-curing threshold τ<sub>c</sub><sup>p</sup>',
+    'stat.cost': 'Curing operations, pulse/Poisson',
+    'stat.t': 'Time t', 'stat.prevPoisson': 'Prevalence (Poisson curing)', 'stat.prevPulse': 'Prevalence (pulse curing)',
+    'net.poisson': 'Poisson curing (Markovian SIS)', 'net.pulse': 'Pulse curing (synchronous, every 1/δ)',
+    'chart.time': 'Prevalence over time', 'chart.phase': 'Phase diagram (click to set p and τ)',
+    'legend.poisson': 'Poisson curing', 'legend.pulse': 'Pulse curing',
+    'legend.taucp': 'τ<sub>c</sub><sup>p</sup> = ln(1/(1−p))/λ<sub>1</sub>',
+    'legend.tauc': '1/λ<sub>1</sub>',
+    'legend.persist': 'Simulation: persists', 'legend.extinct': 'Simulation: dies out',
+    'phase.endemic': 'Endemic', 'phase.healthy': 'All healthy',
+    'axis.t': 't (units of 1/δ)',
+    'status.extinct': 'The infection died out in both processes. Click “Reinfect” to try again.',
+    'status.sweeping': 'Simulating phase diagram… {i}/{n}',
+    'status.sweepDone': 'Phase diagram done: each point starts with half the nodes infected and runs for {T} pulse periods.',
+    'fx.title': 'Model & formulas',
+    'fx.model': '<b>Pulse curing model</b>　An infected node infects each susceptible neighbor at rate $\\beta$ (a Poisson process). Curing no longer happens uniformly over time but synchronously every $1/\\delta$: at $t=k/\\delta$ each infected node is cured with probability $p$. Between pulses only infections occur, i.e. an SI process. The effective infection rate is $\\tau=\\beta/\\delta$; here $\\delta=1$.<div class="muted">In the Markovian SIS process used for comparison, each infected node is cured independently and asynchronously at rate $\\delta$ (Poisson curing).</div>',
+    'fx.threshold': '<b>Mean-field threshold of pulse curing</b>　Between pulses, the mean-field equation linearized around $v=0$ is $\\dot{v}=\\beta A v$, so one period maps $v\\mapsto e^{\\tau A}v$; the pulse then multiplies by $1-p$: $$v\\Big(\\tfrac{k+1}{\\delta}\\Big)=(1-p)\\,e^{\\tau A}\\,v\\Big(\\tfrac{k}{\\delta}\\Big)$$Setting the largest eigenvalue $(1-p)e^{\\tau\\lambda_1}=1$ gives $$\\tau_c^{p}=\\frac{1}{\\lambda_1}\\ln\\frac{1}{1-p}$$<div class="muted">For $\\tau&gt;\\tau_c^p$ the spreading persists; for $\\tau&lt;\\tau_c^p$ all nodes eventually become healthy. The NIMFA threshold of Poisson curing is $1/\\lambda_1$.</div>',
+    'fx.equiv': '<b>About 36.8% fewer curing operations</b>　When $\\ln\\frac{1}{1-p}=1$, i.e. $p=1-1/e\\approx0.632$, $\\tau_c^p=1/\\lambda_1$ and the two strategies have the same threshold, regardless of the network. Both cure at rate $\\delta$, with $\\delta p$ and $\\delta$ curing operations per node per unit time respectively, so the pulse strategy needs only about 63.2% of the operations.<div class="muted">The simulations in the paper show that even above the threshold the two strategies give comparable prevalence at $p=0.632$: the Poisson-curing curve lies right in the middle of the saw-tooth pulse-curing curve.</div>',
+    'fx.optimal': '<b>Choosing δ and p</b>　At the threshold $\\delta=\\lambda_1\\beta/\\ln\\frac{1}{1-p}$, so the total number of curing operations per unit time is $$\\delta pN=\\lambda_1\\beta N\\,\\frac{p}{\\ln\\frac{1}{1-p}}$$<div class="muted">$p/\\ln\\frac{1}{1-p}$ decreases monotonically on $(0,1)$, so the cheapest way is to raise the coverage $p$ while lowering the pulse frequency $\\delta$, i.e. to move right along the red curve in the phase diagram. If the coverage is limited, take the largest achievable $p$ and the corresponding $\\delta$.</div>',
+    'fx.impl': 'Implementation: both processes run simultaneously on the same network from the same initially infected nodes, entirely in the browser. Poisson curing is simulated exactly as a Markovian SIS process with the Gillespie algorithm; for pulse curing, the SI process between pulses is simulated exactly with the Gillespie algorithm and at $t=1,2,\\dots$ each infected node is cured with probability $p$. $\\lambda_1$ is computed by power iteration.',
+    'fx.warning': '<b>⚠ Note</b>: points in the phase diagram come from finite-time simulations: each $(p,\\tau)$ starts with half the nodes infected, and counts as “persists” if infected nodes remain after ' + PULSES + ' pulse periods. Near the threshold the infection grows or decays slowly, so those points are unreliable; each generated network is also random.',
+    'fx.refs': 'References:<br>' + REFS.join('<br>'),
+  }
+};
+
+let currentLang = localStorage.getItem('pulse-viz-lang') || 'en';
+function tr(key, params) {
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || key;
+  if (params) for (const k in params) s = s.replace('{' + k + '}', params[k]);
+  return s;
+}
+function applyLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('pulse-viz-lang', lang);
+  const dict = I18N[lang];
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = dict['title'];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  $('btn-run').textContent = tr(running ? 'btn.pause' : 'btn.start');
+  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise();
+  redrawAll();
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+const CANVAS_FONT = '"Avenir Next", -apple-system, "PingFang SC", sans-serif';
+
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const newSeed = () => (Math.random() * 2 ** 31) | 0;
+
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, rect.width * dpr);
+  canvas.height = Math.max(1, rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+// ---------------------------------------------------------------------------
+// Network generation
+// ---------------------------------------------------------------------------
+function buildGraph(N, edgeSet) {
+  const adj = Array.from({ length: N }, () => []);
+  const edges = [];
+  for (const key of edgeSet) {
+    const i = Math.floor(key / N), j = key % N;
+    adj[i].push(j); adj[j].push(i); edges.push([i, j]);
+  }
+  return { N, adj, edges };
+}
+const edgeKey = (i, j, N) => (i < j ? i * N + j : j * N + i);
+
+function genER(N, k, rand) {
+  const p = k / (N - 1), set = new Set();
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) if (rand() < p) set.add(i * N + j);
+  return buildGraph(N, set);
+}
+
+function genBA(N, k, rand) {
+  const m = Math.max(1, Math.round(k / 2)), set = new Set(), pool = [];
+  for (let i = 0; i <= m; i++) for (let j = i + 1; j <= m; j++) { set.add(edgeKey(i, j, N)); pool.push(i, j); }
+  for (let v = m + 1; v < N; v++) {
+    const targets = new Set();
+    while (targets.size < m) targets.add(pool[Math.floor(rand() * pool.length)]);
+    for (const u of targets) { set.add(edgeKey(u, v, N)); pool.push(u, v); }
+  }
+  return buildGraph(N, set);
+}
+
+function genWS(N, k, rand, rewire = 0.1) {
+  const half = Math.max(1, Math.round(k / 2)), set = new Set();
+  for (let i = 0; i < N; i++) for (let d = 1; d <= half; d++) set.add(edgeKey(i, (i + d) % N, N));
+  for (const key of Array.from(set)) {
+    if (rand() >= rewire) continue;
+    const i = Math.floor(key / N);
+    for (let tries = 0; tries < 20; tries++) {
+      const j = Math.floor(rand() * N);
+      const nk = edgeKey(i, j, N);
+      if (j !== i && !set.has(nk)) { set.delete(key); set.add(nk); break; }
+    }
+  }
+  return buildGraph(N, set);
+}
+
+// Fruchterman–Reingold layout in the unit square.
+function layoutGraph(g, rand) {
+  const { N, edges } = g;
+  const x = new Float64Array(N), y = new Float64Array(N);
+  for (let i = 0; i < N; i++) { x[i] = rand(); y[i] = rand(); }
+  const kf = Math.sqrt(1 / N);
+  const dx = new Float64Array(N), dy = new Float64Array(N);
+  const exact = N <= 400, iters = exact ? 250 : 180;
+  const repel = (i, j) => {
+    const ex = x[i] - x[j], ey = y[i] - y[j];
+    const d2 = ex * ex + ey * ey + 1e-9, f = (kf * kf) / d2;
+    dx[i] += ex * f; dy[i] += ey * f; dx[j] -= ex * f; dy[j] -= ey * f;
+  };
+  // Large graphs: grid variant of Fruchterman–Reingold, repulsion only within 2k.
+  const cs = 2 * kf, next = new Int32Array(N);
+  let temp = 0.1;
+  for (let it = 0; it < iters; it++) {
+    dx.fill(0); dy.fill(0);
+    if (exact) {
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) repel(i, j);
+    } else {
+      let mx = Infinity, my = Infinity, Mx = -Infinity, My = -Infinity;
+      for (let i = 0; i < N; i++) { mx = Math.min(mx, x[i]); my = Math.min(my, y[i]); Mx = Math.max(Mx, x[i]); My = Math.max(My, y[i]); }
+      const W = Math.floor((Mx - mx) / cs) + 1, H = Math.floor((My - my) / cs) + 1;
+      const head = new Int32Array(W * H).fill(-1), cell = new Int32Array(N);
+      for (let i = 0; i < N; i++) {
+        const c = Math.floor((y[i] - my) / cs) * W + Math.floor((x[i] - mx) / cs);
+        cell[i] = c; next[i] = head[c]; head[c] = i;
+      }
+      const cs2 = cs * cs;
+      for (let i = 0; i < N; i++) {
+        const cx = cell[i] % W, cy = (cell[i] - cx) / W;
+        for (let oy = -1; oy <= 1; oy++) {
+          const yy = cy + oy; if (yy < 0 || yy >= H) continue;
+          for (let ox = -1; ox <= 1; ox++) {
+            const xx = cx + ox; if (xx < 0 || xx >= W) continue;
+            for (let j = head[yy * W + xx]; j !== -1; j = next[j]) {
+              if (j <= i) continue;
+              const ex = x[i] - x[j], ey = y[i] - y[j];
+              if (ex * ex + ey * ey < cs2) repel(i, j);
+            }
+          }
+        }
+      }
+    }
+    for (const [i, j] of edges) {
+      const ex = x[i] - x[j], ey = y[i] - y[j];
+      const d = Math.sqrt(ex * ex + ey * ey) + 1e-9, f = d / kf;
+      dx[i] -= ex * f; dy[i] -= ey * f; dx[j] += ex * f; dy[j] += ey * f;
+    }
+    for (let i = 0; i < N; i++) {
+      dx[i] += (0.5 - x[i]) * 0.05 * N * kf; dy[i] += (0.5 - y[i]) * 0.05 * N * kf;
+      const d = Math.sqrt(dx[i] * dx[i] + dy[i] * dy[i]) + 1e-9, s = Math.min(d, temp) / d;
+      x[i] += dx[i] * s; y[i] += dy[i] * s;
+    }
+    temp = Math.max(0.002, temp * 0.97);
+  }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < N; i++) { x0 = Math.min(x0, x[i]); x1 = Math.max(x1, x[i]); y0 = Math.min(y0, y[i]); y1 = Math.max(y1, y[i]); }
+  for (let i = 0; i < N; i++) { x[i] = (x[i] - x0) / (x1 - x0 || 1); y[i] = (y[i] - y0) / (y1 - y0 || 1); }
+  return { x, y };
+}
+
+function largestEigenvalue(g) {
+  const { N, adj } = g;
+  let v = new Float64Array(N).fill(1 / Math.sqrt(N)), lambda = 0;
+  for (let it = 0; it < 1000; it++) {
+    // Power iteration on A + I avoids oscillation on bipartite graphs.
+    const w = new Float64Array(N);
+    for (let i = 0; i < N; i++) { let s = v[i]; for (const j of adj[i]) s += v[j]; w[i] = s; }
+    let dot = 0, norm = 0;
+    for (let i = 0; i < N; i++) { dot += v[i] * w[i]; norm += w[i] * w[i]; }
+    norm = Math.sqrt(norm);
+    const next = dot - 1;
+    for (let i = 0; i < N; i++) v[i] = w[i] / norm;
+    if (Math.abs(next - lambda) < 1e-10) { lambda = next; break; }
+    lambda = next;
+  }
+  return lambda;
+}
+
+// ---------------------------------------------------------------------------
+// Exact simulation (Gillespie). With pulse = false this is the Markovian SIS
+// process with Poisson curing at rate δ = 1. With pulse = true there is no
+// spontaneous curing; instead every infected node is cured with probability p
+// at t = 1, 2, ... and only SI infections happen in between.
+// ---------------------------------------------------------------------------
+function makeProcess(g, rand, pulse) {
+  const { N, adj } = g;
+  const infected = new Uint8Array(N), infNbrs = new Int32Array(N);
+  const list = new Int32Array(N), pos = new Int32Array(N).fill(-1);
+  const S = { infected, nI: 0, siEdges: 0, t: 0, nextPulse: 1, pulsed: false };
+
+  // Fenwick tree over susceptible nodes, weighted by their number of infected neighbors,
+  // so the node to infect is drawn in O(log N).
+  const tree = new Int32Array(N + 1);
+  let top = 1; while (top * 2 <= N) top *= 2;
+  const fenAdd = (i, d) => { for (i++; i <= N; i += i & -i) tree[i] += d; };
+  const fenFind = r => {
+    let idx = 0;
+    for (let b = top; b > 0; b >>= 1) {
+      const nx = idx + b;
+      if (nx <= N && tree[nx] <= r) { idx = nx; r -= tree[nx]; }
+    }
+    return idx;
+  };
+
+  S.infect = v => {
+    if (infected[v]) return;
+    infected[v] = 1; pos[v] = S.nI; list[S.nI++] = v;
+    S.siEdges -= infNbrs[v];
+    if (infNbrs[v]) fenAdd(v, -infNbrs[v]);
+    for (const u of adj[v]) { infNbrs[u]++; if (!infected[u]) { S.siEdges++; fenAdd(u, 1); } }
+  };
+  S.recover = v => {
+    if (!infected[v]) return;
+    infected[v] = 0;
+    const p = pos[v], last = list[--S.nI];
+    list[p] = last; pos[last] = p; pos[v] = -1;
+    S.siEdges += infNbrs[v];
+    if (infNbrs[v]) fenAdd(v, infNbrs[v]);
+    for (const u of adj[v]) { infNbrs[u]--; if (!infected[u]) { S.siEdges--; fenAdd(u, -1); } }
+  };
+  // Advance by one event (an infection, a curing, or a whole pulse).
+  // Returns the time step, or Infinity if absorbed.
+  S.step = (tau, p) => {
+    S.pulsed = false;
+    if (S.nI === 0) return Infinity;
+    const rRec = pulse ? 0 : S.nI, rInf = tau * S.siEdges, total = rRec + rInf;
+    const dt = total > 0 ? -Math.log(1 - rand()) / total : Infinity;
+    const t0 = S.t;
+    // Exponential clocks are memoryless, so a draw that overshoots the pulse can be discarded.
+    if (pulse && t0 + dt >= S.nextPulse) {
+      S.t = S.nextPulse; S.nextPulse += 1; S.pulsed = true;
+      const cur = Array.from(list.subarray(0, S.nI));
+      for (const v of cur) if (rand() < p) S.recover(v);
+      return S.t - t0;
+    }
+    S.t += dt;
+    if (rand() * total < rRec) S.recover(list[Math.floor(rand() * S.nI)]);
+    else S.infect(fenFind(Math.floor(rand() * S.siEdges)));
+    return dt;
+  };
+  return S;
+}
+
+// ---------------------------------------------------------------------------
+// App state
+// ---------------------------------------------------------------------------
+let graph = null, layout = null, stats = null, simM = null, simP = null, running = false, clock = 0;
+let histM = [], histP = [];
+let sweep = { points: [], running: false, token: 0 };
+
+const currentTau = () => +$('tau').value;
+const currentP = () => +$('p').value;
+const pulseThreshold = p => Math.log(1 / (1 - p)) / stats.lambda1;
+// Phase diagram τ axis: up to the pulse threshold at p = 0.95.
+const phaseTauMax = () => Math.min(1, Math.log(20) / stats.lambda1);
+
+function regenerate() {
+  stopSweep();
+  const rand = makeRng(newSeed());
+  const N = +$('n').value, k = +$('k').value, type = $('net-type').value;
+  graph = type === 'ba' ? genBA(N, k, rand) : type === 'ws' ? genWS(N, k, rand) : genER(N, k, rand);
+  layout = layoutGraph(graph, rand);
+  const deg = graph.adj.map(a => a.length);
+  const meanDeg = deg.reduce((a, b) => a + b, 0) / N;
+  const lambda1 = largestEigenvalue(graph);
+  stats = { deg, meanDeg, lambda1, tauc: 1 / lambda1 };
+  sweep.points = [];
+  $('s-edges').textContent = graph.edges.length;
+  $('s-lambda').textContent = lambda1.toFixed(3);
+  $('s-tauc').textContent = stats.tauc.toFixed(3);
+  updateThreshold();
+  reinfect();
+}
+
+function reinfect() {
+  const seed = newSeed();
+  simM = makeProcess(graph, makeRng(seed), false);
+  simP = makeProcess(graph, makeRng(seed + 1), true);
+  const order = Array.from({ length: graph.N }, (_, i) => i), rand = makeRng(seed + 2);
+  for (let i = graph.N - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const n0 = Math.max(1, Math.round(+$('init').value / 100 * graph.N));
+  for (let i = 0; i < n0; i++) { simM.infect(order[i]); simP.infect(order[i]); }
+  clock = 0;
+  histM = [[0, simM.nI / graph.N]];
+  histP = [[0, simP.nI / graph.N]];
+  setStatus('');
+  updateReadout();
+  redrawAll();
+}
+
+function updateThreshold() {
+  const p = currentP();
+  $('s-taucp').textContent = pulseThreshold(p).toFixed(3);
+  $('s-cost').textContent = (100 * p).toFixed(1) + '%';
+}
+
+function setStatus(msg) { $('status').textContent = msg; }
+function updateReadout() {
+  $('s-t').textContent = clock.toFixed(2);
+  $('s-prev-m').textContent = (100 * simM.nI / graph.N).toFixed(1) + '%';
+  $('s-prev-p').textContent = (100 * simP.nI / graph.N).toFixed(1) + '%';
+}
+function setRunning(on) {
+  running = on;
+  $('btn-run').textContent = tr(on ? 'btn.pause' : 'btn.start');
+}
+
+// ---------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------
+function nodeRadius(i) {
+  const base = Math.max(1.3, Math.min(6, 45 / Math.sqrt(graph.N)));
+  return base * (0.7 + 0.3 * Math.sqrt(stats.deg[i] / Math.max(stats.meanDeg, 1)));
+}
+
+function drawNetwork(canvasId, sim) {
+  const { ctx, w, h } = setupCanvas($(canvasId));
+  ctx.clearRect(0, 0, w, h);
+  if (!graph) return;
+  const pad = 10, s = Math.min(w, h) - 2 * pad, ox = (w - s) / 2, oy = (h - s) / 2;
+  const X = x => ox + x * s, Y = y => oy + y * s;
+  ctx.strokeStyle = cssVar('--edge'); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const [i, j] of graph.edges) { ctx.moveTo(X(layout.x[i]), Y(layout.y[i])); ctx.lineTo(X(layout.x[j]), Y(layout.y[j])); }
+  ctx.stroke();
+  const cI = cssVar('--infected'), cS = cssVar('--susceptible');
+  for (let i = 0; i < graph.N; i++) {
+    ctx.beginPath();
+    ctx.arc(X(layout.x[i]), Y(layout.y[i]), nodeRadius(i), 0, 2 * Math.PI);
+    ctx.fillStyle = sim.infected[i] ? cI : cS; ctx.fill();
+    ctx.strokeStyle = sim.infected[i] ? cI : '#bdb5a6'; ctx.lineWidth = 1; ctx.stroke();
+  }
+}
+
+function axes(ctx, w, h, pad, ymax, xLabels, digits = 2) {
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) { const y = pad.t + i * (h - pad.t - pad.b) / 4; ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); }
+  ctx.stroke();
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT;
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + i * (h - pad.t - pad.b) / 4;
+    ctx.fillText((ymax * (1 - i / 4)).toFixed(digits), pad.l - 6, y + 4);
+  }
+  ctx.textAlign = 'left'; ctx.fillText(xLabels[0], pad.l, h - 8);
+  ctx.textAlign = 'center'; if (xLabels[2]) ctx.fillText(xLabels[2], (pad.l + w - pad.r) / 2, h - 8);
+  ctx.textAlign = 'right'; ctx.fillText(xLabels[1], w - pad.r, h - 8);
+  ctx.textAlign = 'left';
+}
+
+function drawTimeChart() {
+  const { ctx, w, h } = setupCanvas($('c-time'));
+  ctx.clearRect(0, 0, w, h);
+  if (!graph) return;
+  const pad = { l: 42, r: 12, t: 10, b: 26 };
+  const tmax = Math.max(10, clock * 1.05);
+  axes(ctx, w, h, pad, 1, ['0', tmax.toFixed(0), tr('axis.t')]);
+  const X = t => pad.l + (t / tmax) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - v * (h - pad.t - pad.b);
+  const curve = (hist, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    hist.forEach(([t, v], i) => { if (i === 0) ctx.moveTo(X(t), Y(v)); else ctx.lineTo(X(t), Y(v)); });
+    ctx.stroke();
+  };
+  curve(histP, cssVar('--pulse'));
+  curve(histM, cssVar('--poisson'));
+}
+
+function phaseTransform(w, h) {
+  const pad = { l: 46, r: 12, t: 10, b: 26 };
+  const ymax = phaseTauMax();
+  return {
+    pad, ymax,
+    X: p => pad.l + p * (w - pad.l - pad.r),
+    Y: t => h - pad.b - (t / ymax) * (h - pad.t - pad.b),
+    invX: x => (x - pad.l) / (w - pad.l - pad.r),
+    invY: y => ((h - pad.b - y) / (h - pad.t - pad.b)) * ymax,
+  };
+}
+
+function drawPhaseChart() {
+  const { ctx, w, h } = setupCanvas($('c-phase'));
+  ctx.clearRect(0, 0, w, h);
+  if (!graph) return;
+  const { pad, ymax, X, Y } = phaseTransform(w, h);
+  // Endemic region above the pulse threshold curve.
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+  for (let i = 0; i <= 200; i++) {
+    const p = (i / 200) * 0.999;
+    ctx.lineTo(X(p), Y(Math.min(ymax, pulseThreshold(p))));
+  }
+  ctx.lineTo(X(1), Y(ymax)); ctx.lineTo(X(0), Y(ymax)); ctx.closePath();
+  ctx.fillStyle = cssVar('--infected'); ctx.globalAlpha = 0.07; ctx.fill();
+  ctx.restore();
+  axes(ctx, w, h, pad, ymax, ['0', '1', 'p'], 3);
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT;
+  ctx.fillText('τ', 6, pad.t + 12);
+  ctx.textAlign = 'left'; ctx.fillText(tr('phase.endemic'), X(0.04), Y(ymax * 0.9));
+  ctx.textAlign = 'right'; ctx.fillText(tr('phase.healthy'), X(0.96), Y(ymax * 0.1));
+  ctx.textAlign = 'left';
+
+  // Poisson-curing threshold 1/λ1 and p* = 1 − 1/e.
+  const pStar = 1 - Math.exp(-1);
+  ctx.save(); ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+  ctx.strokeStyle = cssVar('--poisson');
+  ctx.beginPath(); ctx.moveTo(X(0), Y(stats.tauc)); ctx.lineTo(X(1), Y(stats.tauc)); ctx.stroke();
+  ctx.strokeStyle = cssVar('--gold');
+  ctx.beginPath(); ctx.moveTo(X(pStar), Y(0)); ctx.lineTo(X(pStar), Y(ymax)); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = cssVar('--gold'); ctx.textAlign = 'center';
+  ctx.fillText('1−1/e', X(pStar), h - 8);
+  ctx.textAlign = 'left';
+
+  // Pulse threshold curve.
+  ctx.strokeStyle = cssVar('--pulse'); ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 200; i++) {
+    const p = (i / 200) * 0.999, t = pulseThreshold(p);
+    if (t > ymax) break;
+    if (i === 0) ctx.moveTo(X(p), Y(t)); else ctx.lineTo(X(p), Y(t));
+  }
+  ctx.stroke();
+
+  // Simulated points.
+  for (const [p, t, alive] of sweep.points) {
+    ctx.beginPath(); ctx.arc(X(p), Y(t), 3.5, 0, 2 * Math.PI);
+    if (alive) { ctx.fillStyle = cssVar('--infected'); ctx.fill(); }
+    else { ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1.2; ctx.stroke(); }
+  }
+
+  // Current (p, τ).
+  const cp = currentP(), ct = currentTau();
+  if (ct <= ymax) {
+    ctx.save(); ctx.strokeStyle = cssVar('--ink'); ctx.lineWidth = 1.5;
+    const cx = X(cp), cy = Y(ct);
+    ctx.beginPath(); ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * Math.PI); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function redrawAll() {
+  if (!graph) return;
+  drawNetwork('net-m', simM); drawNetwork('net-p', simP);
+  drawTimeChart(); drawPhaseChart();
+}
+window.addEventListener('resize', redrawAll);
+
+// ---------------------------------------------------------------------------
+// Animation loop
+// ---------------------------------------------------------------------------
+function advance(sim, hist, target, tau, p) {
+  let events = 0;
+  while (sim.t < target && events < 50000) {
+    const n0 = sim.nI;
+    if (sim.step(tau, p) === Infinity) break;
+    events++;
+    // Record both sides of each pulse so the saw-tooth is drawn sharply.
+    if (sim.pulsed) { hist.push([sim.t, n0 / graph.N]); hist.push([sim.t, sim.nI / graph.N]); }
+  }
+  hist.push([sim.nI > 0 ? sim.t : target, sim.nI / graph.N]);
+  if (hist.length > 6000) hist.splice(0, hist.length, ...hist.filter((_, i) => i % 2 === 0));
+}
+
+let lastFrame = performance.now();
+function frame(now) {
+  const dtReal = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (running) {
+    clock += dtReal * +$('speed').value;
+    const target = clock;
+    const tau = currentTau(), p = currentP();
+    advance(simM, histM, target, tau, p);
+    advance(simP, histP, target, tau, p);
+    if (simM.nI === 0 && simP.nI === 0) { setRunning(false); setStatus(tr('status.extinct')); }
+    updateReadout();
+    drawNetwork('net-m', simM); drawNetwork('net-p', simP); drawTimeChart();
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------------------
+// Phase diagram: simulated persistence on a (p, τ) grid
+// ---------------------------------------------------------------------------
+function stopSweep() {
+  sweep.token++; sweep.running = false;
+  $('btn-sweep').disabled = false;
+}
+
+function runSweep() {
+  stopSweep();
+  const token = sweep.token, g = graph, ymax = phaseTauMax();
+  const ps = [], taus = [];
+  for (let i = 0; i < 10; i++) ps.push(0.05 + 0.1 * i);
+  for (let j = 0; j < 10; j++) taus.push(ymax * (j + 0.5) / 10);
+  sweep.points = []; sweep.running = true;
+  $('btn-sweep').disabled = true;
+  let i = 0;
+  const next = () => {
+    if (token !== sweep.token) return;
+    if (i >= ps.length) {
+      sweep.running = false; $('btn-sweep').disabled = false;
+      setStatus(tr('status.sweepDone', { T: PULSES }));
+      drawPhaseChart(); return;
+    }
+    const p = ps[i];
+    for (const tau of taus) {
+      const rand = makeRng(newSeed()), s = makeProcess(g, rand, true);
+      for (let v = 0; v < g.N; v++) if (rand() < 0.5) s.infect(v);
+      if (s.nI === 0) s.infect(0);
+      while (s.t < PULSES && s.nI > 0) s.step(tau, p);
+      sweep.points.push([p, tau, s.nI > 0]);
+    }
+    setStatus(tr('status.sweeping', { i: i + 1, n: ps.length }));
+    drawPhaseChart();
+    i++;
+    setTimeout(next, 0);
+  };
+  setTimeout(next, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------------
+function setTau(v) {
+  $('tau').value = v;
+  $('tau-val').textContent = (+$('tau').value).toFixed(3);
+}
+function setP(v) {
+  $('p').value = v;
+  $('p-val').textContent = (+$('p').value).toFixed(3);
+  updateThreshold();
+}
+
+$('n').oninput = e => { $('n-val').textContent = e.target.value; };
+$('k').oninput = e => { $('k-val').textContent = e.target.value; };
+$('n').onchange = regenerate;
+$('k').onchange = regenerate;
+$('net-type').onchange = regenerate;
+$('tau').oninput = e => { setTau(e.target.value); drawPhaseChart(); };
+$('p').oninput = e => { setP(e.target.value); drawPhaseChart(); };
+$('btn-pstar').onclick = () => { setP(1 - Math.exp(-1)); drawPhaseChart(); };
+$('init').oninput = e => { $('init-val').textContent = e.target.value + '%'; };
+$('speed').oninput = e => { $('speed-val').textContent = e.target.value + '×'; };
+$('btn-run').onclick = () => {
+  if (simM.nI === 0 && simP.nI === 0) reinfect();
+  setRunning(!running);
+};
+$('btn-reset').onclick = reinfect;
+$('btn-regen').onclick = regenerate;
+$('btn-sweep').onclick = runSweep;
+document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
+
+$('c-phase').addEventListener('click', e => {
+  const rect = $('c-phase').getBoundingClientRect();
+  const { invX, invY, ymax } = phaseTransform(rect.width, rect.height);
+  const p = invX(e.clientX - rect.left), t = invY(e.clientY - rect.top);
+  if (p < 0 || p > 1 || t < 0 || t > ymax) return;
+  setP(Math.min(0.99, p)); setTau(Math.min(1, t));
+  drawPhaseChart();
+});
+
+regenerate();
+applyLang(currentLang);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
