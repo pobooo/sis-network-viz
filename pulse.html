@@ -39,8 +39,11 @@
   }
   header .titles { flex: 1; min-width: 280px; }
   header .kicker { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
-  header .kicker a { color: inherit; text-decoration: none; }
-  header .kicker a:hover { text-decoration: underline; }
+  header .meta a.nav-btn {
+    border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px;
+    font-size: 12px; font-weight: 500; color: var(--muted); text-decoration: none;
+  }
+  header .meta a.nav-btn:hover { border-color: var(--ink); color: var(--ink); }
   header h1 {
     margin: 0 0 8px; font-family: var(--serif); font-size: clamp(26px, 3.4vw, 36px);
     font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
@@ -140,12 +143,13 @@
   <header>
     <div class="inner">
       <div class="titles">
-        <p class="kicker">Interactive demo · <a href="./" data-i18n="nav.sis">SIS 传播 demo</a></p>
+        <p class="kicker">Interactive demo</p>
         <h1 data-i18n="title">脉冲恢复策略：抑制网络上的传播</h1>
         <p class="sub" data-i18n="subtitle">同步治愈比异步治愈更高效</p>
       </div>
       <div class="meta">
         <span>by <a href="https://qiangliu.net">Qiang Liu</a></span>
+        <a class="nav-btn" href="./" data-i18n="nav.sis">← SIS 传播 demo</a>
         <div class="lang-switch">
           <button data-lang="zh">中</button>
           <button data-lang="en">EN</button>
