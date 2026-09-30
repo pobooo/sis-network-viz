@@ -86,6 +86,11 @@
   button.secondary:hover:not(:disabled) { border-color: var(--ink); }
   button.primary:hover:not(:disabled) { filter: brightness(1.08); }
   button:disabled { opacity: .4; cursor: not-allowed; }
+  button.wide { grid-column: span 2; }
+  label.check { display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; cursor: pointer; }
+  label.check input { margin: 2px 0 0; accent-color: var(--accent); }
+  .status { margin-top: 12px; font-size: 13px; color: var(--muted); min-height: 18px; }
+  .tri { font-size: 10px; }
   .hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
   .kv {
     display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0;
@@ -185,12 +190,15 @@
       </select>
       <label><span data-i18n="panel.speed">播放速度</span>: <b id="speed-val">4×</b></label>
       <input type="range" id="speed" min="1" max="40" step="1" value="4" />
+      <label class="check"><input type="checkbox" id="qs" checked /><span data-i18n="panel.qs">准稳态：灭绝后从存下的状态继续</span></label>
 
       <div class="btn-group">
         <button class="primary" id="btn-run" data-i18n="btn.start">开始</button>
+        <button class="secondary" id="btn-restart" data-i18n="btn.restart">重新感染</button>
         <button class="secondary" id="btn-clear" data-i18n="btn.clear">清空统计</button>
-        <button class="secondary" id="btn-regen" data-i18n="btn.regen">新网络</button>
+        <button class="secondary wide" id="btn-regen" data-i18n="btn.regen">新网络</button>
       </div>
+      <div class="status" id="status"></div>
 
       <h3 style="margin-top:22px" data-i18n="panel.stats">网络与阈值</h3>
       <div class="kv"><span data-i18n="stat.edges">边数</span><b id="s-edges">–</b></div>
@@ -200,7 +208,7 @@
       <div class="kv"><span data-i18n-html="stat.taucB"></span><b id="s-taucb">–</b></div>
       <div class="kv"><span data-i18n="stat.t">时间 t</span><b id="s-t">–</b></div>
       <div class="kv"><span data-i18n="stat.window">统计时长</span><b id="s-window">–</b></div>
-      <div class="kv"><span data-i18n="stat.restores">准稳态恢复次数（马尔可夫/突发）</span><b id="s-restores">–</b></div>
+      <div class="kv"><span data-i18n="stat.restores">灭绝次数（马尔可夫/突发）</span><b id="s-restores">–</b></div>
     </aside>
 
     <section class="content">
@@ -226,6 +234,7 @@
             <span><span class="line" style="border-color:var(--burst)"></span><span data-i18n="legend.burst">突发 SIS</span></span>
             <span><span class="dash" style="border-color:var(--markov)"></span><span data-i18n-html="legend.mfM"></span></span>
             <span><span class="dash" style="border-color:var(--burst)"></span><span data-i18n-html="legend.mfB"></span></span>
+            <span><span class="tri" style="color:var(--markov)">▲</span><span class="tri" style="color:var(--burst);margin-right:6px">▲</span><span data-i18n="legend.ext">灭绝</span></span>
           </div>
         </div>
         <div class="card chart">
@@ -307,12 +316,15 @@ const I18N = {
     'panel.ttHint': '两个过程各自按自己的平均场阈值取 τ = (1+τ̃)τ<sub>c</sub>。',
     'panel.color': '节点颜色', 'color.state': '当前感染状态', 'color.rho': '累计感染时间占比',
     'panel.speed': '播放速度',
-    'btn.start': '开始', 'btn.pause': '暂停', 'btn.clear': '清空统计', 'btn.regen': '新网络',
+    'btn.start': '开始', 'btn.pause': '暂停', 'btn.clear': '清空统计', 'btn.regen': '新网络', 'btn.restart': '重新感染',
+    'panel.qs': '准稳态：灭绝后从存下的状态继续',
+    'legend.ext': '灭绝',
+    'status.extinct': '两个过程都已灭绝，全部节点健康。点“开始”或“重新感染”从全部感染重新开始。',
     'panel.stats': '网络与阈值', 'stat.edges': '边数',
     'stat.ipr': 'IPR h(x) = Σx<sub>i</sub><sup>4</sup>',
     'stat.taucM': '马尔可夫阈值 1/λ<sub>1</sub>',
     'stat.taucB': '突发阈值 1/ln(1+λ<sub>1</sub>)',
-    'stat.t': '时间 t', 'stat.window': '统计时长', 'stat.restores': '准稳态恢复（马尔可夫/突发）',
+    'stat.t': '时间 t', 'stat.window': '统计时长', 'stat.restores': '灭绝次数（马尔可夫/突发）',
     'net.markov': '马尔可夫 SIS（每条边以速率 β 感染）', 'net.burst': '突发 SIS（每隔 1/β 感染全部健康邻居）',
     'foot.prev': '当前感染比例 {p}', 'foot.burn': '（前 {T} 个时间单位为预热，不计入统计）',
     'chart.time': '感染比例随时间变化',
@@ -332,8 +344,8 @@ const I18N = {
     'fx.threshold': '<b>平均场阈值</b>　马尔可夫 SIS 的 NIMFA 阈值为 $\\tau_c=1/\\lambda_1$。突发方程在 $v=0$ 处线性化为 $v\\mapsto e^{-\\delta/\\beta}(I+A)\\,v$，令最大特征值等于 1，得到 $$\\tau_c^{(B)}=\\frac{1}{\\ln(1+\\lambda_1)}$$<div class="muted">本页两个过程取相同的 $\\tilde\\tau=\\tau/\\tau_c-1$，各自相对自己的阈值。线性化矩阵 $e^{-\\delta/\\beta}(I+A)$ 与 $A$ 有相同的主特征向量 $x$，所以阈值附近两种过程的平均场感染概率都沿 $x$ 方向。</div>',
     'fx.loc': '<b>局域化</b>　阈值附近马尔可夫 SIS 的平均场感染比例为 $y_\\infty=a\\tilde\\tau+o(\\tilde\\tau)$，其中 $$a=\\frac{\\sum_i x_i}{N\\sum_i x_i^3},\\qquad \\sum_i x_i^2=1$$若 $N\\to\\infty$ 时 $a\\to0$，阈值附近的感染比例趋于 0，传播是局域化的。<div class="muted">论文沿用 Pastor-Satorras 与 Castellano 的定义：IPR $h(x)=\\sum_i x_i^4=O(N^{-\\alpha})$，$0\\le\\alpha&lt;1$ 时 $x$ 是局域化的，只有 $h(x)=O(N^{-1})$ 时才是非局域化的。感染比例趋于 0 并不意味着感染节点数有限：星形图上 $a=O(1/\\sqrt N)$，感染节点数却是 $O(\\sqrt N)$。</div>',
     'fx.amax': '<b>突发只能放大 $O(\\ln\\lambda_1)$ 倍</b>　突发 SIS 的感染比例在突发后最大、突发前最小，二者之比最多为 $1+\\lambda_1$。阈值附近 $y^+=a_{\\max}\\tilde\\tau+o(\\tilde\\tau)$，$y^-=a_{\\min}\\tilde\\tau+o(\\tilde\\tau)$，其中 $$a_{\\max}=\\frac{2(1+\\lambda_1)\\ln(1+\\lambda_1)}{\\lambda_1}\\,a,\\qquad a_{\\min}=\\frac{a_{\\max}}{1+\\lambda_1}$$<div class="muted">$\\lambda_1$ 很大时 $a_{\\max}\\approx2\\ln(\\lambda_1)\\,a$。局域化网络上 $a=O(N^{-\\eta})$，而 $\\ln\\lambda_1&lt;\\ln N$，所以 $a_{\\max}=O(N^{-\\eta}\\ln N)\\to0$：突发不能把局域化的传播变成非局域化的传播。</div>',
-    'fx.impl': '实现：两个过程在同一网络上从全部节点感染开始同时模拟，全部在浏览器中完成。马尔可夫 SIS 用 Gillespie 算法精确模拟，$\\delta=1$。突发 SIS 取 $\\beta=1$：每次突发后给每个感染节点抽一个指数分布的恢复时间，活到下一次突发的节点感染全部邻居，与论文的模拟方法相同。两个过程的时间单位分别是 $1/\\delta$ 和 $1/\\beta$。阈值附近有限网络上的传播很容易灭绝，这里用准稳态方法（de Oliveira 与 Dickman 2005）：每个时间单位把当前状态存入 ' + QS_SLOTS + ' 个槽位中的一个，灭绝时从中随机取一个状态继续。$\\rho_i$ 是预热 ' + BURN_IN + ' 个时间单位之后节点 $i$ 处于感染态的时间占比。$\\lambda_1$ 与 $x$ 用 $A+I$ 的幂迭代求得，平均场稳态用不动点迭代求得。',
-    'fx.warning': '<b>⚠ 注意</b>：论文的结论是平均场近似下、$N\\to\\infty$ 时的结论；有限网络上的模拟只能显示趋势。按论文，ER 这类稀疏、度分布均匀的网络上平均场系数不太准，幂律和指数度分布网络上与模拟吻合得很好。星形图上除中心外所有节点的 $x_i$ 相同，“最大的 5% 节点”包含中心和任选的一批叶节点。$\\tilde\\tau$ 越大，感染越接近铺满全网，局域化越不明显。',
+    'fx.impl': '实现：两个过程在同一网络上从全部节点感染开始同时模拟，全部在浏览器中完成。马尔可夫 SIS 用 Gillespie 算法精确模拟，$\\delta=1$。突发 SIS 取 $\\beta=1$：每次突发后给每个感染节点抽一个指数分布的恢复时间，活到下一次突发的节点感染全部邻居，与论文的模拟方法相同。两个过程的时间单位分别是 $1/\\delta$ 和 $1/\\beta$。有限网络上的 SIS 过程最终一定会灭绝，阈值附近灭绝得更快。勾选“准稳态”时用 de Oliveira 与 Dickman (2005) 的准稳态方法：每个时间单位把当前状态存入 ' + QS_SLOTS + ' 个槽位中的一个，灭绝时从中随机取一个状态继续；不勾选时灭绝后就停在全部健康的状态。每次灭绝都在时间曲线底部用三角标出。$\\rho_i$ 是预热 ' + BURN_IN + ' 个时间单位之后节点 $i$ 处于感染态的时间占比。$\\lambda_1$ 与 $x$ 用 $A+I$ 的幂迭代求得，平均场稳态用不动点迭代求得。',
+    'fx.warning': '<b>⚠ 注意</b>：论文的结论是平均场近似下、$N\\to\\infty$ 时的结论；有限网络上的模拟只能显示趋势。按论文，ER 这类稀疏、度分布均匀的网络上平均场系数不太准，幂律和指数度分布网络上与模拟吻合得很好。星形图上除中心外所有节点的 $x_i$ 相同，“最大的 5% 节点”包含中心和任选的一批叶节点。星形图在阈值附近灭绝得非常频繁（N = 500、$\\tilde\\tau=0.1$ 时突发 SIS 一半以上的周期以灭绝结束），这时看到的持续感染在很大程度上来自准稳态恢复；中心活到突发时会让全部节点被感染，但这种周期的比例随 N 增大而减小，平均感染比例仍趋于 0。$\\tilde\\tau$ 越大，感染越接近铺满全网，局域化越不明显。',
     'fx.refs': '参考：<br>' + REFS.join('<br>'),
   },
   en: {
@@ -348,12 +360,15 @@ const I18N = {
     'panel.ttHint': 'Each process uses τ = (1+τ̃)τ<sub>c</sub> with its own mean-field threshold.',
     'panel.color': 'Node color', 'color.state': 'Current infection state', 'color.rho': 'Fraction of time infected',
     'panel.speed': 'Playback speed',
-    'btn.start': 'Start', 'btn.pause': 'Pause', 'btn.clear': 'Clear statistics', 'btn.regen': 'New network',
+    'btn.start': 'Start', 'btn.pause': 'Pause', 'btn.clear': 'Clear statistics', 'btn.regen': 'New network', 'btn.restart': 'Reinfect',
+    'panel.qs': 'Quasi-stationary: after extinction, continue from a stored state',
+    'legend.ext': 'Extinction',
+    'status.extinct': 'Both processes have died out and all nodes are healthy. Click “Start” or “Reinfect” to start again with all nodes infected.',
     'panel.stats': 'Network & thresholds', 'stat.edges': 'Edges',
     'stat.ipr': 'IPR h(x) = Σx<sub>i</sub><sup>4</sup>',
     'stat.taucM': 'Markovian threshold 1/λ<sub>1</sub>',
     'stat.taucB': 'Bursty threshold 1/ln(1+λ<sub>1</sub>)',
-    'stat.t': 'Time t', 'stat.window': 'Measured time', 'stat.restores': 'Quasi-stationary restores (Markov/bursty)',
+    'stat.t': 'Time t', 'stat.window': 'Measured time', 'stat.restores': 'Extinctions (Markov/bursty)',
     'net.markov': 'Markovian SIS (each link infects at rate β)', 'net.burst': 'Bursty SIS (all healthy neighbors infected every 1/β)',
     'foot.prev': 'Current prevalence {p}', 'foot.burn': '(the first {T} time units are burn-in and not measured)',
     'chart.time': 'Prevalence over time',
@@ -373,8 +388,8 @@ const I18N = {
     'fx.threshold': '<b>Mean-field thresholds</b>　The NIMFA threshold of Markovian SIS is $\\tau_c=1/\\lambda_1$. Linearizing the bursty equation around $v=0$ gives $v\\mapsto e^{-\\delta/\\beta}(I+A)\\,v$; setting its largest eigenvalue to 1 gives $$\\tau_c^{(B)}=\\frac{1}{\\ln(1+\\lambda_1)}$$<div class="muted">On this page both processes use the same $\\tilde\\tau=\\tau/\\tau_c-1$, each relative to its own threshold. The linearized matrix $e^{-\\delta/\\beta}(I+A)$ has the same principal eigenvector $x$ as $A$, so near the threshold the mean-field infection probabilities of both processes point along $x$.</div>',
     'fx.loc': '<b>Localization</b>　Near the threshold, the mean-field prevalence of Markovian SIS is $y_\\infty=a\\tilde\\tau+o(\\tilde\\tau)$, where $$a=\\frac{\\sum_i x_i}{N\\sum_i x_i^3},\\qquad \\sum_i x_i^2=1$$If $a\\to0$ as $N\\to\\infty$, the near-threshold prevalence tends to zero and the spreading is localized.<div class="muted">The paper follows the definition of Pastor-Satorras and Castellano: $x$ is localized if the IPR $h(x)=\\sum_i x_i^4=O(N^{-\\alpha})$ with $0\\le\\alpha&lt;1$, and delocalized only if $h(x)=O(N^{-1})$. A vanishing prevalence does not mean a finite number of infected nodes: on a star graph $a=O(1/\\sqrt N)$ while the number of infected nodes is $O(\\sqrt N)$.</div>',
     'fx.amax': '<b>Bursts amplify only by $O(\\ln\\lambda_1)$</b>　The bursty prevalence is largest just after a burst and smallest just before one, and their ratio is at most $1+\\lambda_1$. Near the threshold $y^+=a_{\\max}\\tilde\\tau+o(\\tilde\\tau)$ and $y^-=a_{\\min}\\tilde\\tau+o(\\tilde\\tau)$, where $$a_{\\max}=\\frac{2(1+\\lambda_1)\\ln(1+\\lambda_1)}{\\lambda_1}\\,a,\\qquad a_{\\min}=\\frac{a_{\\max}}{1+\\lambda_1}$$<div class="muted">For large $\\lambda_1$, $a_{\\max}\\approx2\\ln(\\lambda_1)\\,a$. On a localized network $a=O(N^{-\\eta})$ and $\\ln\\lambda_1&lt;\\ln N$, so $a_{\\max}=O(N^{-\\eta}\\ln N)\\to0$: bursts cannot turn localized spreading into delocalized spreading.</div>',
-    'fx.impl': 'Implementation: both processes start with all nodes infected and run simultaneously on the same network, entirely in the browser. Markovian SIS is simulated exactly with the Gillespie algorithm, with $\\delta=1$. Bursty SIS uses $\\beta=1$: after each burst every infected node draws an exponential curing time, and the nodes that survive until the next burst infect all their neighbors, as in the simulations of the paper. The time units are $1/\\delta$ and $1/\\beta$ respectively. Near the threshold, spreading on a finite network easily dies out, so the quasi-stationary method of de Oliveira and Dickman (2005) is used: every time unit the current state is stored in one of ' + QS_SLOTS + ' slots, and on extinction the process continues from a randomly chosen stored state. $\\rho_i$ is the fraction of time node $i$ is infected after a burn-in of ' + BURN_IN + ' time units. $\\lambda_1$ and $x$ come from power iteration on $A+I$, and the mean-field steady states from fixed-point iteration.',
-    'fx.warning': '<b>⚠ Note</b>: the result of the paper holds under the mean-field approximation as $N\\to\\infty$; simulations on finite networks can only show the trend. According to the paper, the mean-field coefficients are inaccurate on sparse networks with homogeneous degrees such as ER graphs, and agree very well with simulations on power-law and exponential-degree networks. On a star graph all nodes except the center have the same $x_i$, so “the top 5% of nodes” are the center plus an arbitrary set of leaves. The larger $\\tilde\\tau$, the closer the infection comes to covering the whole network and the weaker the localization.',
+    'fx.impl': 'Implementation: both processes start with all nodes infected and run simultaneously on the same network, entirely in the browser. Markovian SIS is simulated exactly with the Gillespie algorithm, with $\\delta=1$. Bursty SIS uses $\\beta=1$: after each burst every infected node draws an exponential curing time, and the nodes that survive until the next burst infect all their neighbors, as in the simulations of the paper. The time units are $1/\\delta$ and $1/\\beta$ respectively. SIS on a finite network always dies out eventually, and faster near the threshold. With “Quasi-stationary” checked, the quasi-stationary method of de Oliveira and Dickman (2005) is used: every time unit the current state is stored in one of ' + QS_SLOTS + ' slots, and on extinction the process continues from a randomly chosen stored state; unchecked, the process stays all-healthy after extinction. Every extinction is marked with a triangle at the bottom of the time chart. $\\rho_i$ is the fraction of time node $i$ is infected after a burn-in of ' + BURN_IN + ' time units. $\\lambda_1$ and $x$ come from power iteration on $A+I$, and the mean-field steady states from fixed-point iteration.',
+    'fx.warning': '<b>⚠ Note</b>: the result of the paper holds under the mean-field approximation as $N\\to\\infty$; simulations on finite networks can only show the trend. According to the paper, the mean-field coefficients are inaccurate on sparse networks with homogeneous degrees such as ER graphs, and agree very well with simulations on power-law and exponential-degree networks. On a star graph all nodes except the center have the same $x_i$, so “the top 5% of nodes” are the center plus an arbitrary set of leaves. Near the threshold the star graph dies out very often (for N = 500 and $\\tilde\\tau=0.1$, more than half of the bursty periods end in extinction), so the persistent infection seen here largely comes from quasi-stationary restores; when the center survives until a burst all nodes become infected, but the share of such periods decreases as N grows and the average prevalence still tends to zero. The larger $\\tilde\\tau$, the closer the infection comes to covering the whole network and the weaker the localization.',
     'fx.refs': 'References:<br>' + REFS.join('<br>'),
   }
 };
@@ -648,7 +663,7 @@ function makeMarkov(g, rand) {
   const list = new Int32Array(N), pos = new Int32Array(N).fill(-1);
   const since = new Float64Array(N), acc = new Float64Array(N);
   const memory = makeMemory(rand);
-  const S = { infected, nI: 0, siEdges: 0, t: 0, statStart: 0, restores: 0, nextStore: 1, hist: [] };
+  const S = { infected, nI: 0, siEdges: 0, t: 0, statStart: 0, restores: 0, nextStore: 1, hist: [], ext: [] };
 
   // Fenwick tree over susceptible nodes, weighted by their number of infected neighbors,
   // so the node to infect is drawn in O(log N).
@@ -683,7 +698,11 @@ function makeMarkov(g, rand) {
   };
   for (let v = 0; v < N; v++) infect(v);
 
-  S.advance = (target, tau) => {
+  S.advance = (target, tau, qs) => {
+    if (S.nI === 0) {
+      if (!qs) { S.t = target; S.hist.push([S.t, 0]); return; }
+      for (const v of memory.draw(N)) infect(v);
+    }
     let events = 0;
     while (events < 400000) {
       const total = S.nI + tau * S.siEdges;
@@ -693,7 +712,11 @@ function makeMarkov(g, rand) {
       while (S.t >= S.nextStore) { memory.store(Array.from(list.subarray(0, S.nI))); S.nextStore += 1; }
       if (rand() * total < S.nI) {
         recover(list[Math.floor(rand() * S.nI)]);
-        if (S.nI === 0) { S.restores++; for (const v of memory.draw(N)) infect(v); }
+        if (S.nI === 0) {
+          S.restores++; S.ext.push(S.t);
+          if (!qs) { S.hist.push([S.t, 0]); S.t = target; break; }
+          for (const v of memory.draw(N)) infect(v);
+        }
       } else infect(fenFind(Math.floor(rand() * S.siEdges)));
     }
     S.hist.push([S.t, S.nI / N]);
@@ -721,7 +744,7 @@ function makeBursty(g, rand) {
   const inPlus = new Uint8Array(N), cure = new Float64Array(N), acc = new Float64Array(N);
   const plus = new Int32Array(N), mark = new Uint8Array(N);
   const memory = makeMemory(rand);
-  const B = { n: 0, t: 0, nPlus: 0, statStart: 0, periods: 0, restores: 0, hist: [] };
+  const B = { n: 0, t: 0, nPlus: 0, statStart: 0, periods: 0, restores: 0, hist: [], ext: [], absorbed: false };
 
   const startPeriod = (nodes, delta) => {
     inPlus.fill(0); B.nPlus = 0;
@@ -731,7 +754,7 @@ function makeBursty(g, rand) {
   B.isInfected = v => inPlus[v] === 1 && cure[v] > B.t;
 
   B.init = delta => { startPeriod(Array.from({ length: N }, (_, i) => i), delta); B.hist.push([0, 1]); };
-  B.advance = (target, delta) => {
+  B.advance = (target, delta, qs) => {
     while (B.n + 1 <= target) {
       const end = B.n + 1, survivors = [];
       for (let q = 0; q < B.nPlus; q++) {
@@ -743,8 +766,11 @@ function makeBursty(g, rand) {
       B.n = end; B.t = end;
       B.hist.push([end, survivors.length / N]);
       let seeds = survivors;
-      if (!survivors.length) { B.restores++; seeds = memory.draw(N); }
-      else memory.store(survivors);
+      if (!survivors.length) {
+        if (!B.absorbed) { B.restores++; B.ext.push(end); }
+        B.absorbed = !qs;
+        seeds = qs ? memory.draw(N) : [];
+      } else memory.store(survivors);
       mark.fill(0);
       const next = [];
       for (const v of seeds) {
@@ -805,9 +831,14 @@ function restart() {
   simB.init(1 / tauBursty());
   simM.hist.push([0, 1]);
   clock = 0; statsStarted = false;
+  setStatus('');
   updateReadout();
   redrawAll();
 }
+
+function setStatus(msg) { $('status').textContent = msg; }
+const qsOn = () => $('qs').checked;
+const bothExtinct = () => simM.count() === 0 && simB.absorbed;
 
 function clearStats() {
   simM.resetStats(); simB.resetStats();
@@ -976,6 +1007,17 @@ function drawTimeChart() {
   curve(simB.hist, cssVar('--burst'));
   curve(simM.hist, cssVar('--markov'));
   ctx.restore();
+  const marks = (times, color, row) => {
+    ctx.fillStyle = color;
+    const y = h - pad.b - 2 - row * 9;
+    for (const t of times) {
+      if (t < t0 || t > t1) continue;
+      const x = X(t);
+      ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.closePath(); ctx.fill();
+    }
+  };
+  marks(simM.ext, cssVar('--markov'), 1);
+  marks(simB.ext, cssVar('--burst'), 0);
 }
 
 function drawScatter() {
@@ -1075,9 +1117,9 @@ function computeScaling() {
 // ---------------------------------------------------------------------------
 // Animation loop
 // ---------------------------------------------------------------------------
-function trimHist(hist) {
+function trimHist(hist, key = e => e[0]) {
   const cut = clock - TIME_WINDOW - 2;
-  let i = 0; while (i < hist.length && hist[i][0] < cut) i++;
+  let i = 0; while (i < hist.length && key(hist[i]) < cut) i++;
   if (i > 0) hist.splice(0, i);
 }
 
@@ -1087,10 +1129,13 @@ function frame(now) {
   lastFrame = now;
   if (running) {
     clock += dtReal * +$('speed').value;
-    simM.advance(clock, tauMarkov());
-    simB.advance(clock, 1 / tauBursty());
+    const qs = qsOn();
+    simM.advance(clock, tauMarkov(), qs);
+    simB.advance(clock, 1 / tauBursty(), qs);
     if (!statsStarted && clock >= BURN_IN) { simM.resetStats(); simB.resetStats(); statsStarted = true; }
     trimHist(simM.hist); trimHist(simB.hist);
+    trimHist(simM.ext, t => t); trimHist(simB.ext, t => t);
+    if (!qs && bothExtinct()) { setRunning(false); setStatus(tr('status.extinct')); updateReadout(); }
     drawNetwork('net-m', simM); drawNetwork('net-b', simB);
     drawTimeChart();
     if (frameCount++ % 6 === 0) { updateReadout(); drawScatter(); }
@@ -1116,7 +1161,12 @@ $('tt').oninput = e => { $('tt-val').textContent = (+e.target.value).toFixed(2);
 $('tt').onchange = () => { updateMeanField(); clearStats(); };
 $('speed').oninput = e => { $('speed-val').textContent = e.target.value + '×'; };
 $('color-mode').onchange = () => { drawNetwork('net-m', simM); drawNetwork('net-b', simB); };
-$('btn-run').onclick = () => setRunning(!running);
+$('btn-run').onclick = () => {
+  if (!running && !qsOn() && bothExtinct()) restart();
+  setRunning(!running);
+};
+$('btn-restart').onclick = restart;
+$('qs').onchange = () => setStatus('');
 $('btn-clear').onclick = clearStats;
 $('btn-regen').onclick = regenerate;
 document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
