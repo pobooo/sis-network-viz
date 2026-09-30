@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -45,6 +45,7 @@
     font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
   }
   header .sub { margin: 0; color: var(--muted); font-size: 15px; }
+  header .intro { margin: 14px 0 0; max-width: 920px; font-size: 14px; line-height: 1.7; color: var(--ink); }
   header .meta { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
   header .meta a { color: inherit; }
   .lang-switch { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
@@ -134,6 +135,7 @@
         <p class="kicker">Interactive demo</p>
         <h1 data-i18n="title">网络上的 SIS 传播</h1>
         <p class="sub" data-i18n="subtitle">有效感染率 τ 越过阈值后，感染才能在网络上长期存在；阈值由网络结构决定</p>
+        <p class="intro" data-i18n-html="intro"></p>
       </div>
       <div class="meta">
         <span>by <a href="https://qiangliu.net">Qiang Liu</a></span>
@@ -261,6 +263,7 @@ const I18N = {
     'net.er': '随机图 (Erdős–Rényi)', 'net.ba': '无标度网络 (Barabási–Albert)', 'net.ws': '小世界网络 (Watts–Strogatz)',
     'panel.process': '传播过程', 'panel.tau': '有效感染率 τ = β/δ', 'panel.init': '初始感染比例', 'panel.speed': '播放速度',
     'panel.alpha': '感染时间 Weibull 形状 α', 'alpha.exp': '（指数，马尔可夫）', 'alpha.bursty': '（突发）', 'alpha.regular': '（更规则）',
+    'intro': 'SIS（易感–感染–易感）模型描述不产生持久免疫、可以反复感染的传播过程，例如计算机病毒或季节性流感。网络中每个节点处于易感 (S) 或感染 (I) 状态：感染节点沿边感染易感邻居，经过一段时间后恢复为易感，之后还可能再次被感染。感染能否在网络上长期存在，取决于有效感染率 τ（感染速率与恢复速率之比）是否超过由网络结构决定的阈值。本页在浏览器中对这一随机过程做精确模拟，可以调节网络结构、τ 和感染时间的分布（马尔可夫或 Weibull 非马尔可夫），并与平均场理论给出的阈值对照。',
     'stat.nimfa': 'NIMFA 阈值 1/λ<sub>1</sub>（马尔可夫）',
     'stat.hmf': 'HMF 阈值 ⟨k⟩/⟨k²⟩（马尔可夫）',
     'legend.nimfaTh': '1/λ<sub>1</sub>（马尔可夫）',
@@ -294,6 +297,7 @@ const I18N = {
     'net.er': 'Random graph (Erdős–Rényi)', 'net.ba': 'Scale-free (Barabási–Albert)', 'net.ws': 'Small world (Watts–Strogatz)',
     'panel.process': 'Process', 'panel.tau': 'Effective infection rate τ = β/δ', 'panel.init': 'Initially infected', 'panel.speed': 'Playback speed',
     'panel.alpha': 'Weibull shape α of infection times', 'alpha.exp': '(exponential, Markovian)', 'alpha.bursty': '(bursty)', 'alpha.regular': '(more regular)',
+    'intro': 'The SIS (susceptible–infected–susceptible) model describes spreading processes without lasting immunity, where nodes can be infected again and again, such as computer viruses or seasonal influenza. Each node of the network is either susceptible (S) or infected (I): an infected node infects its susceptible neighbors along links and, after some time, recovers and becomes susceptible again, so it can be reinfected. Whether the infection persists on the network depends on whether the effective infection rate τ (the ratio of the infection rate to the curing rate) exceeds a threshold determined by the network structure. This page simulates the stochastic process exactly in the browser: you can vary the network, τ and the distribution of infection times (Markovian or Weibull non-Markovian), and compare the simulation with thresholds from mean-field theory.',
     'stat.nimfa': 'NIMFA threshold 1/λ<sub>1</sub> (Markovian)',
     'stat.hmf': 'HMF threshold ⟨k⟩/⟨k²⟩ (Markovian)',
     'legend.nimfaTh': '1/λ<sub>1</sub> (Markovian)',
@@ -322,7 +326,7 @@ const I18N = {
   }
 };
 
-let currentLang = localStorage.getItem('sis-viz-lang') || 'zh';
+let currentLang = localStorage.getItem('sis-viz-lang') || 'en';
 function tr(key, params) {
   let s = (I18N[currentLang] && I18N[currentLang][key]) || key;
   if (params) for (const k in params) s = s.replace('{' + k + '}', params[k]);
