@@ -39,11 +39,9 @@
   }
   header .titles { flex: 1; min-width: 280px; }
   header .kicker { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
-  header .meta a.nav-btn {
-    border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px;
-    font-size: 12px; font-weight: 500; color: var(--muted); text-decoration: none;
-  }
-  header .meta a.nav-btn:hover { border-color: var(--ink); color: var(--ink); }
+  header .related { flex-basis: 100%; margin: -12px 0 0; font-size: 13px; color: var(--muted); }
+  header .related a { color: var(--navy); }
+  header .related b { color: var(--ink); font-weight: 600; }
   header h1 {
     margin: 0 0 8px; font-family: var(--serif); font-size: clamp(26px, 3.4vw, 36px);
     font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
@@ -149,13 +147,13 @@
       </div>
       <div class="meta">
         <span>by <a href="https://qiangliu.net">Qiang Liu</a></span>
-        <a class="nav-btn" href="./" data-i18n="nav.sis">← SIS 传播 demo</a>
         <div class="lang-switch">
           <button data-lang="zh">中</button>
           <button data-lang="en">EN</button>
         </div>
       </div>
       <p class="intro" data-i18n-html="intro"></p>
+      <p class="related" data-i18n-html="related"></p>
     </div>
   </header>
 
@@ -266,7 +264,7 @@ const REFS = [
 
 const I18N = {
   zh: {
-    'nav.sis': '← SIS 传播 demo',
+    'related': '相关 demo：<a href="./">网络上的 SIS 传播</a> · <b>脉冲恢复策略：抑制网络上的传播</b>（本页）',
     'title': '脉冲恢复策略：抑制网络上的传播',
     'subtitle': '同步治愈比异步治愈更高效：覆盖率 p ≈ 0.632 的脉冲恢复与泊松恢复效果相当',
     'intro': '传统的 SIS 模型假设恢复在时间上均匀、异步地发生：每个感染节点各自以速率 δ 恢复，刚被治愈的节点仍可能被尚未治愈的邻居重新感染。脉冲策略则每隔一段时间同步治愈一批节点，相邻节点更可能同时被治愈，从而减少邻居之间的反复感染。控制麻疹的脉冲疫苗接种、印度控制脊髓灰质炎的全国免疫日都属于这类策略。本页在同一网络上同时模拟两种恢复方式，并与 Liu、Zhou 与 Van Mieghem (2019) 给出的平均场阈值对照：覆盖率 p = 1 − 1/e ≈ 0.632 的脉冲恢复与泊松恢复阈值相同，却只需约 63.2% 的恢复操作。',
@@ -302,7 +300,7 @@ const I18N = {
     'fx.refs': '参考：<br>' + REFS.join('<br>'),
   },
   en: {
-    'nav.sis': '← SIS epidemics demo',
+    'related': 'Related demos: <a href="./">SIS Epidemics on Networks</a> · <b>Pulse Strategy for Suppressing Spreading on Networks</b> (this page)',
     'title': 'Pulse Strategy for Suppressing Spreading on Networks',
     'subtitle': 'Synchronous curing is more efficient than asynchronous curing: pulse curing with coverage p ≈ 0.632 matches Poisson curing',
     'intro': 'The classical SIS model assumes that curing happens uniformly and asynchronously over time: each infected node recovers on its own at rate δ, so a node that has just been cured can be reinfected by a neighbor that is still infected. A pulse strategy instead cures a batch of nodes synchronously at regular intervals, so neighbors are more likely to be cured at the same time and reinfections between them are reduced. Pulse vaccination against measles and India’s National Immunization Days against polio are examples. This page simulates both kinds of curing on the same network and compares them with the mean-field threshold of Liu, Zhou and Van Mieghem (2019): pulse curing with coverage p = 1 − 1/e ≈ 0.632 has the same threshold as Poisson curing, while using only about 63.2% of the curing operations.',
