@@ -264,7 +264,7 @@ const REFS = [
 
 const I18N = {
   zh: {
-    'related': '相关 demo：<a href="./">网络上的 SIS 传播</a> · <b>脉冲恢复策略：抑制网络上的传播</b>（本页）',
+    'related': '相关 demo：<a href="./">网络上的 SIS 传播</a> · <b>脉冲恢复策略：抑制网络上的传播</b>（本页） · <a href="localization.html">突发感染改变不了网络局域化</a>',
     'title': '脉冲恢复策略：抑制网络上的传播',
     'subtitle': '同步治愈比异步治愈更高效：覆盖率 p ≈ 0.632 的脉冲恢复与泊松恢复效果相当',
     'intro': '传统的 SIS 模型假设恢复在时间上均匀、异步地发生：每个感染节点各自以速率 δ 恢复，刚被治愈的节点仍可能被尚未治愈的邻居重新感染。脉冲策略则每隔一段时间同步治愈一批节点，相邻节点更可能同时被治愈，从而减少邻居之间的反复感染。控制麻疹的脉冲疫苗接种、印度控制脊髓灰质炎的全国免疫日都属于这类策略。本页在同一网络上同时模拟两种恢复方式，并与 Liu、Zhou 与 Van Mieghem (2019) 给出的平均场阈值对照：覆盖率 p = 1 − 1/e ≈ 0.632 的脉冲恢复与泊松恢复阈值相同，却只需约 63.2% 的恢复操作。',
@@ -300,7 +300,7 @@ const I18N = {
     'fx.refs': '参考：<br>' + REFS.join('<br>'),
   },
   en: {
-    'related': 'Related demos: <a href="./">SIS Epidemics on Networks</a> · <b>Pulse Strategy for Suppressing Spreading on Networks</b> (this page)',
+    'related': 'Related demos: <a href="./">SIS Epidemics on Networks</a> · <b>Pulse Strategy for Suppressing Spreading on Networks</b> (this page) · <a href="localization.html">Network Localization Is Unalterable by Infections in Bursts</a>',
     'title': 'Pulse Strategy for Suppressing Spreading on Networks',
     'subtitle': 'Synchronous curing is more efficient than asynchronous curing: pulse curing with coverage p ≈ 0.632 matches Poisson curing',
     'intro': 'The classical SIS model assumes that curing happens uniformly and asynchronously over time: each infected node recovers on its own at rate δ, so a node that has just been cured can be reinfected by a neighbor that is still infected. A pulse strategy instead cures a batch of nodes synchronously at regular intervals, so neighbors are more likely to be cured at the same time and reinfections between them are reduced. Pulse vaccination against measles and India’s National Immunization Days against polio are examples. This page simulates both kinds of curing on the same network and compares them with the mean-field threshold of Liu, Zhou and Van Mieghem (2019): pulse curing with coverage p = 1 − 1/e ≈ 0.632 has the same threshold as Poisson curing, while using only about 63.2% of the curing operations.',

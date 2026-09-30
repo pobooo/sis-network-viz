@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Network Localization Is Unalterable by Infections in Bursts</title>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] },
+    svg: { fontCache: 'global' },
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --ink: #1a1916;
+    --muted: #5c5852;
+    --line: #ddd8cf;
+    --paper: #f7f3ec;
+    --card: #fffcf7;
+    --accent: #8f1d1d;
+    --navy: #1f3d5c;
+    --infected: #b3261e;
+    --susceptible: #e9e3d8;
+    --edge: rgba(92, 88, 82, 0.18);
+    --markov: #1f3d5c;
+    --burst: #b3261e;
+    --gold: #b07d1a;
+    --grid: #ebe6dc;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC", "Noto Serif SC", serif;
+    --sans: "Avenir Next", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); background: var(--paper); color: var(--ink); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); }
+  header .inner {
+    max-width: 1320px; margin: 0 auto; padding: 28px 28px 22px;
+    display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+  }
+  header .titles { flex: 1; min-width: 280px; }
+  header .kicker { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+  header .related { flex-basis: 100%; margin: -12px 0 0; font-size: 13px; color: var(--muted); }
+  header .related a { color: var(--navy); }
+  header .related b { color: var(--ink); font-weight: 600; }
+  header h1 {
+    margin: 0 0 8px; font-family: var(--serif); font-size: clamp(26px, 3.4vw, 36px);
+    font-weight: 600; line-height: 1.2; letter-spacing: -0.01em;
+  }
+  header .sub { margin: 0; color: var(--muted); font-size: 15px; }
+  header .intro {
+    flex-basis: 100%; margin: 0; padding-top: 14px; border-top: 1px solid var(--line);
+    font-size: 14px; line-height: 1.7; color: var(--ink);
+  }
+  header .meta { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--muted); }
+  header .meta a { color: inherit; }
+  .lang-switch { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .lang-switch button {
+    background: transparent; color: var(--muted); border: none; border-radius: 0;
+    padding: 5px 11px; font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .lang-switch button.active { background: var(--ink); color: var(--card); }
+  main {
+    display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: start;
+    padding: 24px 28px 48px; max-width: 1320px; margin: 0 auto;
+  }
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+    position: sticky; top: 16px;
+  }
+  .panel h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  label b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  label.disabled { opacity: .45; }
+  select {
+    width: 100%; padding: 8px 10px; background: #fff; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; font: 14px var(--sans);
+  }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+  button {
+    padding: 10px 12px; border-radius: 6px; border: 1px solid transparent; cursor: pointer;
+    font: 600 13px var(--sans); transition: filter .15s, background .15s;
+  }
+  button.primary { background: var(--accent); color: #fff; grid-column: span 2; }
+  button.secondary { background: var(--card); color: var(--ink); border-color: var(--line); }
+  button.secondary:hover:not(:disabled) { border-color: var(--ink); }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .kv {
+    display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0;
+    border-bottom: 1px dashed var(--line); color: var(--muted);
+  }
+  .kv:last-child { border-bottom: none; }
+  .kv b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .content { display: grid; gap: 16px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 12px; }
+  .card h4 { margin: 0 0 8px; font: 600 14px var(--sans); color: var(--ink); }
+  .card h4 small { font-weight: 400; color: var(--muted); }
+  .net-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .net-wrap { height: 400px; display: flex; flex-direction: column; }
+  .net-wrap canvas { flex: 1; min-height: 0; }
+  .net-foot { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart { height: 330px; display: flex; flex-direction: column; }
+  .chart canvas { flex: 1; min-height: 0; }
+  .share-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  .share-table th, .share-table td { padding: 6px 8px; text-align: right; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  .share-table th:first-child, .share-table td:first-child { text-align: left; color: var(--muted); font-weight: 400; }
+  .share-table th { font-weight: 600; color: var(--ink); }
+  .share-table tr:last-child td { border-bottom: none; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .legend { display: flex; gap: 16px; font-size: 13px; margin-top: 8px; color: var(--muted); flex-wrap: wrap; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .dash { display: inline-block; width: 16px; height: 0; border-top: 2px dashed; margin-right: 6px; vertical-align: 3px; }
+  .line { display: inline-block; width: 16px; height: 0; border-top: 2px solid; margin-right: 6px; vertical-align: 3px; }
+  .formulas { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; font-family: var(--serif); }
+  .formulas h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .formulas .block { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px; }
+  .formulas .col { font-size: 15px; line-height: 1.6; min-width: 0; }
+  .formulas .col b { color: var(--navy); }
+  .formulas mjx-container { color: var(--ink) !important; overflow-x: auto; overflow-y: hidden; }
+  .formulas .muted { color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .formulas .note-box {
+    margin-top: 14px; padding: 10px 14px; background: color-mix(in srgb, var(--accent) 5%, var(--card));
+    border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  }
+  .formulas .note-box b:first-child { color: var(--accent); }
+  .formulas .refs { margin-top: 14px; font-size: 14px; color: var(--muted); line-height: 1.7; }
+  .formulas .refs a { color: var(--navy); }
+  @media (max-width: 900px) {
+    main { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    main > * { min-width: 0; }
+    header .inner { padding: 20px 16px 16px; }
+    .panel { position: static; }
+    .net-wrap { height: 320px; }
+    .net-row, .chart-row, .formulas .block { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <div class="titles">
+        <p class="kicker">Interactive demo</p>
+        <h1 data-i18n="title">突发感染改变不了网络局域化</h1>
+        <p class="sub" data-i18n="subtitle"></p>
+      </div>
+      <div class="meta">
+        <span>by <a href="https://qiangliu.net">Qiang Liu</a></span>
+        <div class="lang-switch">
+          <button data-lang="zh">中</button>
+          <button data-lang="en">EN</button>
+        </div>
+      </div>
+      <p class="intro" data-i18n-html="intro"></p>
+      <p class="related" data-i18n-html="related"></p>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <h3 data-i18n="panel.network">网络</h3>
+      <label data-i18n="panel.type">网络类型</label>
+      <select id="net-type">
+        <option value="ba" data-i18n="net.ba">无标度网络 (Barabási–Albert)</option>
+        <option value="ua" data-i18n="net.ua">指数度分布网络（均匀连接）</option>
+        <option value="star" data-i18n="net.star">星形图</option>
+        <option value="er" data-i18n="net.er">随机图 (Erdős–Rényi)</option>
+        <option value="ws" data-i18n="net.ws">小世界网络 (Watts–Strogatz)</option>
+      </select>
+      <label><span data-i18n="panel.n">节点数 N</span>: <b id="n-val">500</b></label>
+      <input type="range" id="n" min="100" max="2000" step="100" value="500" />
+      <label id="k-label"><span data-i18n="panel.k">平均度 ⟨k⟩</span>: <b id="k-val">6</b></label>
+      <input type="range" id="k" min="2" max="12" step="2" value="6" />
+
+      <h3 style="margin-top:22px" data-i18n="panel.process">传播</h3>
+      <label><span data-i18n-html="panel.tt"></span>: <b id="tt-val">0.10</b></label>
+      <input type="range" id="tt" min="0.05" max="2" step="0.05" value="0.1" />
+      <p class="hint" data-i18n-html="panel.ttHint"></p>
+      <label><span data-i18n="panel.color">节点颜色</span></label>
+      <select id="color-mode">
+        <option value="state" data-i18n="color.state">当前感染状态</option>
+        <option value="rho" data-i18n="color.rho">累计感染时间占比</option>
+      </select>
+      <label><span data-i18n="panel.speed">播放速度</span>: <b id="speed-val">4×</b></label>
+      <input type="range" id="speed" min="1" max="40" step="1" value="4" />
+
+      <div class="btn-group">
+        <button class="primary" id="btn-run" data-i18n="btn.start">开始</button>
+        <button class="secondary" id="btn-clear" data-i18n="btn.clear">清空统计</button>
+        <button class="secondary" id="btn-regen" data-i18n="btn.regen">新网络</button>
+      </div>
+
+      <h3 style="margin-top:22px" data-i18n="panel.stats">网络与阈值</h3>
+      <div class="kv"><span data-i18n="stat.edges">边数</span><b id="s-edges">–</b></div>
+      <div class="kv"><span>λ<sub>1</sub></span><b id="s-lambda">–</b></div>
+      <div class="kv"><span data-i18n-html="stat.ipr"></span><b id="s-ipr">–</b></div>
+      <div class="kv"><span data-i18n-html="stat.taucM"></span><b id="s-taucm">–</b></div>
+      <div class="kv"><span data-i18n-html="stat.taucB"></span><b id="s-taucb">–</b></div>
+      <div class="kv"><span data-i18n="stat.t">时间 t</span><b id="s-t">–</b></div>
+      <div class="kv"><span data-i18n="stat.window">统计时长</span><b id="s-window">–</b></div>
+      <div class="kv"><span data-i18n="stat.restores">准稳态恢复次数（马尔可夫/突发）</span><b id="s-restores">–</b></div>
+    </aside>
+
+    <section class="content">
+      <div class="net-row">
+        <div class="card net-wrap">
+          <h4 data-i18n="net.markov">马尔可夫 SIS</h4>
+          <canvas id="net-m"></canvas>
+          <div class="net-foot" id="foot-m"></div>
+        </div>
+        <div class="card net-wrap">
+          <h4 data-i18n="net.burst">突发 SIS（每隔 1/β 感染全部邻居）</h4>
+          <canvas id="net-b"></canvas>
+          <div class="net-foot" id="foot-b"></div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="card chart">
+          <h4 data-i18n="chart.time">感染比例随时间变化</h4>
+          <canvas id="c-time"></canvas>
+          <div class="legend">
+            <span><span class="line" style="border-color:var(--markov)"></span><span data-i18n="legend.markov">马尔可夫 SIS</span></span>
+            <span><span class="line" style="border-color:var(--burst)"></span><span data-i18n="legend.burst">突发 SIS</span></span>
+            <span><span class="dash" style="border-color:var(--markov)"></span><span data-i18n-html="legend.mfM"></span></span>
+            <span><span class="dash" style="border-color:var(--burst)"></span><span data-i18n-html="legend.mfB"></span></span>
+          </div>
+        </div>
+        <div class="card chart">
+          <h4 data-i18n-html="chart.scatter"></h4>
+          <canvas id="c-scatter"></canvas>
+          <div class="legend">
+            <span><span class="dot" style="background:var(--markov)"></span><span data-i18n="legend.markov">马尔可夫 SIS</span></span>
+            <span><span class="dot" style="background:var(--burst)"></span><span data-i18n="legend.burst">突发 SIS</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 data-i18n-html="share.title"></h4>
+        <table class="share-table">
+          <thead><tr><th></th><th data-i18n="legend.markov">马尔可夫 SIS</th><th data-i18n="legend.burst">突发 SIS</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="share.sim">模拟</td><td id="sh-m">–</td><td id="sh-b">–</td></tr>
+            <tr><td data-i18n="share.mf">平均场</td><td id="sh-mf-m">–</td><td id="sh-mf-b">–</td></tr>
+            <tr><td data-i18n-html="share.limit"></td><td colspan="2" id="sh-x" style="text-align:center">–</td></tr>
+            <tr><td data-i18n-html="share.corr"></td><td id="cor-m">–</td><td id="cor-b">–</td></tr>
+          </tbody>
+        </table>
+        <div class="legend" style="margin-top:6px"><span data-i18n-html="share.note"></span></div>
+      </div>
+
+      <div class="card chart">
+        <h4 data-i18n-html="chart.scale"></h4>
+        <canvas id="c-scale"></canvas>
+        <div class="legend">
+          <span><span class="line" style="border-color:var(--markov)"></span><span data-i18n-html="legend.a"></span></span>
+          <span><span class="line" style="border-color:var(--burst)"></span><span data-i18n-html="legend.amax"></span></span>
+          <span><span class="dash" style="border-color:var(--burst)"></span><span data-i18n-html="legend.amin"></span></span>
+          <span id="scale-status"></span>
+        </div>
+      </div>
+
+      <div class="formulas">
+        <h3 data-i18n="fx.title">模型与公式</h3>
+        <div class="block">
+          <div class="col" data-i18n-html="fx.model"></div>
+          <div class="col" data-i18n-html="fx.threshold"></div>
+        </div>
+        <div class="block" style="margin-top:14px">
+          <div class="col" data-i18n-html="fx.loc"></div>
+          <div class="col" data-i18n-html="fx.amax"></div>
+        </div>
+        <div class="muted" style="margin-top:12px" data-i18n-html="fx.impl"></div>
+        <div class="muted note-box" data-i18n-html="fx.warning"></div>
+        <div class="refs" data-i18n-html="fx.refs"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// ---------------------------------------------------------------------------
+// i18n
+// ---------------------------------------------------------------------------
+const BURN_IN = 10, QS_SLOTS = 50, TOP_FRACTION = 0.05, TIME_WINDOW = 40;
+const SCALE_NS = [100, 200, 400, 800, 1600, 3200], SCALE_REPS = 3;
+const REFS = [
+  'Q. Liu, P. Van Mieghem. <a href="https://qiangliu.net/publications/TNSE_SIS_localization_2018.pdf">Network Localization Is Unalterable by Infections in Bursts</a>. IEEE Transactions on Network Science and Engineering, 6(4): 983–989, 2019. <a href="https://doi.org/10.1109/TNSE.2018.2889539">doi</a>',
+  'Q. Liu, P. Van Mieghem. <a href="https://qiangliu.net/publications/PhysRevE2018_largest_non_Markovan_threshold.pdf">Burst of Virus Infection and a Possibly Largest Epidemic Threshold of Non-Markovian Susceptible-Infected-Susceptible Processes on Networks</a>. Physical Review E, 97: 022309, 2018.',
+  'A. V. Goltsev, S. N. Dorogovtsev, J. G. Oliveira, J. F. F. Mendes. Localization and Spreading of Diseases in Complex Networks. Physical Review Letters, 109: 128702, 2012.',
+  'R. Pastor-Satorras, C. Castellano. Distinct Types of Eigenvector Localization in Networks. Scientific Reports, 6: 18847, 2016.',
+  'M. M. de Oliveira, R. Dickman. How to Simulate the Quasistationary State. Physical Review E, 71: 016129, 2005.',
+];
+
+const I18N = {
+  zh: {
+    'related': '相关 demo：<a href="./">网络上的 SIS 传播</a> · <a href="pulse.html">脉冲恢复策略：抑制网络上的传播</a> · <b>突发感染改变不了网络局域化</b>（本页）',
+    'title': '突发感染改变不了网络局域化',
+    'subtitle': '在同一网络上并排模拟马尔可夫 SIS 与突发 SIS：突发让感染节点定期感染全部邻居，感染却仍集中在同一批节点上',
+    'intro': '在阈值附近，SIS 传播常常只集中在网络的一小部分节点上，这称为局域化：网络变大时，感染比例趋于 0。平均场理论中，阈值附近各节点的感染概率正比于邻接矩阵主特征向量 $x$ 的分量 $x_i$；如果 $x$ 集中在少数 hub 上，传播也集中在这些 hub 上。突发 SIS 模型让每个感染节点每隔 $1/\\beta$ 同步感染所有健康邻居，把感染节点数放大到最多 $1+\\lambda_1$ 倍，而无标度网络的 $\\lambda_1$ 随 $N$ 发散。Liu 与 Van Mieghem (2019) 在平均场近似下证明，即便如此，局域化网络上阈值附近的感染比例仍趋于 0。本页在同一网络上并排模拟两种过程，统计每个节点被感染的时间占比，并与主特征向量对比；下方的系数图给出平均场系数随 $N$ 的变化。',
+    'panel.network': '网络', 'panel.type': '网络类型', 'panel.n': '节点数 N', 'panel.k': '平均度 ⟨k⟩',
+    'net.ba': '无标度网络 (Barabási–Albert)', 'net.ua': '指数度分布网络（均匀连接）', 'net.star': '星形图',
+    'net.er': '随机图 (Erdős–Rényi)', 'net.ws': '小世界网络 (Watts–Strogatz)',
+    'panel.process': '传播', 'panel.tt': '距阈值 τ̃ = τ/τ<sub>c</sub> − 1',
+    'panel.ttHint': '两个过程各自按自己的平均场阈值取 τ = (1+τ̃)τ<sub>c</sub>。',
+    'panel.color': '节点颜色', 'color.state': '当前感染状态', 'color.rho': '累计感染时间占比',
+    'panel.speed': '播放速度',
+    'btn.start': '开始', 'btn.pause': '暂停', 'btn.clear': '清空统计', 'btn.regen': '新网络',
+    'panel.stats': '网络与阈值', 'stat.edges': '边数',
+    'stat.ipr': 'IPR h(x) = Σx<sub>i</sub><sup>4</sup>',
+    'stat.taucM': '马尔可夫阈值 1/λ<sub>1</sub>',
+    'stat.taucB': '突发阈值 1/ln(1+λ<sub>1</sub>)',
+    'stat.t': '时间 t', 'stat.window': '统计时长', 'stat.restores': '准稳态恢复（马尔可夫/突发）',
+    'net.markov': '马尔可夫 SIS（每条边以速率 β 感染）', 'net.burst': '突发 SIS（每隔 1/β 感染全部健康邻居）',
+    'foot.prev': '当前感染比例 {p}', 'foot.burn': '（前 {T} 个时间单位为预热，不计入统计）',
+    'chart.time': '感染比例随时间变化',
+    'chart.scatter': '每个节点的感染时间占比 ρ<sub>i</sub> 与 x<sub>i</sub>/max x',
+    'legend.markov': '马尔可夫 SIS', 'legend.burst': '突发 SIS',
+    'legend.mfM': 'NIMFA y<sub>∞</sub>', 'legend.mfB': '突发平均场 y<sup>+</sup>, y<sup>−</sup>',
+    'axis.t': 't', 'axis.x': 'x_i / max x', 'axis.n': 'N',
+    'share.title': 'x<sub>i</sub> 最大的 5% 节点占全部感染时间的比例 <small>（节点均匀分担时为 5%）</small>',
+    'share.sim': '模拟', 'share.mf': '平均场（当前 τ̃）', 'share.corr': 'ρ<sub>i</sub> 与 x<sub>i</sub> 的相关系数（模拟）',
+    'share.limit': 'τ̃ → 0 的平均场极限 Σ<sub>top</sub>x<sub>i</sub>/Σx<sub>i</sub>（两者相同）',
+    'share.note': '阈值附近两种过程的感染分布都趋于正比于 x<sub>i</sub>，所以两列都趋于同一个极限；τ̃ 增大时突发 SIS 的感染铺得更开，比例下降得更快。在 BA 与指数度分布网络上把 τ̃ 调小，两列都明显高于 5%，并随 N 增大而升高。',
+    'chart.scale': '辅助：平均场系数随 N 的变化 <small>（当前网络类型与 ⟨k⟩，每个 N 平均 ' + SCALE_REPS + ' 个网络）</small>',
+    'legend.a': 'a（马尔可夫）', 'legend.amax': 'a<sub>max</sub>（突发后）', 'legend.amin': 'a<sub>min</sub>（突发前）',
+    'scale.running': '计算中…',
+    'fx.title': '模型与公式',
+    'fx.model': '<b>两种过程</b>　马尔可夫 SIS 中，感染节点以速率 $\\beta$ 感染每个健康邻居，并以速率 $\\delta$ 恢复，$\\tau=\\beta/\\delta$。突发 SIS 中恢复不变，仍以速率 $\\delta$ 发生；但感染只在 $t=1/\\beta,2/\\beta,\\dots$ 时发生，此刻每个感染节点感染它的全部健康邻居。它是非马尔可夫 SIS 模型的一个极限情形。平均场方程为 $$v_i\\Big(\\tfrac{n+1}{\\beta}\\Big)=u_i+(1-u_i)\\Big[1-\\prod_{j\\in\\mathcal N_i}(1-u_j)\\Big],\\quad u_i=e^{-\\delta/\\beta}\\,v_i\\Big(\\tfrac{n}{\\beta}\\Big)$$<div class="muted">$v_i$ 取突发刚结束时的值，$u_i$ 是下次突发前的值。</div>',
+    'fx.threshold': '<b>平均场阈值</b>　马尔可夫 SIS 的 NIMFA 阈值为 $\\tau_c=1/\\lambda_1$。突发方程在 $v=0$ 处线性化为 $v\\mapsto e^{-\\delta/\\beta}(I+A)\\,v$，令最大特征值等于 1，得到 $$\\tau_c^{(B)}=\\frac{1}{\\ln(1+\\lambda_1)}$$<div class="muted">本页两个过程取相同的 $\\tilde\\tau=\\tau/\\tau_c-1$，各自相对自己的阈值。线性化矩阵 $e^{-\\delta/\\beta}(I+A)$ 与 $A$ 有相同的主特征向量 $x$，所以阈值附近两种过程的平均场感染概率都沿 $x$ 方向。</div>',
+    'fx.loc': '<b>局域化</b>　阈值附近马尔可夫 SIS 的平均场感染比例为 $y_\\infty=a\\tilde\\tau+o(\\tilde\\tau)$，其中 $$a=\\frac{\\sum_i x_i}{N\\sum_i x_i^3},\\qquad \\sum_i x_i^2=1$$若 $N\\to\\infty$ 时 $a\\to0$，阈值附近的感染比例趋于 0，传播是局域化的。<div class="muted">论文沿用 Pastor-Satorras 与 Castellano 的定义：IPR $h(x)=\\sum_i x_i^4=O(N^{-\\alpha})$，$0\\le\\alpha&lt;1$ 时 $x$ 是局域化的，只有 $h(x)=O(N^{-1})$ 时才是非局域化的。感染比例趋于 0 并不意味着感染节点数有限：星形图上 $a=O(1/\\sqrt N)$，感染节点数却是 $O(\\sqrt N)$。</div>',
+    'fx.amax': '<b>突发只能放大 $O(\\ln\\lambda_1)$ 倍</b>　突发 SIS 的感染比例在突发后最大、突发前最小，二者之比最多为 $1+\\lambda_1$。阈值附近 $y^+=a_{\\max}\\tilde\\tau+o(\\tilde\\tau)$，$y^-=a_{\\min}\\tilde\\tau+o(\\tilde\\tau)$，其中 $$a_{\\max}=\\frac{2(1+\\lambda_1)\\ln(1+\\lambda_1)}{\\lambda_1}\\,a,\\qquad a_{\\min}=\\frac{a_{\\max}}{1+\\lambda_1}$$<div class="muted">$\\lambda_1$ 很大时 $a_{\\max}\\approx2\\ln(\\lambda_1)\\,a$。局域化网络上 $a=O(N^{-\\eta})$，而 $\\ln\\lambda_1&lt;\\ln N$，所以 $a_{\\max}=O(N^{-\\eta}\\ln N)\\to0$：突发不能把局域化的传播变成非局域化的传播。</div>',
+    'fx.impl': '实现：两个过程在同一网络上从全部节点感染开始同时模拟，全部在浏览器中完成。马尔可夫 SIS 用 Gillespie 算法精确模拟，$\\delta=1$。突发 SIS 取 $\\beta=1$：每次突发后给每个感染节点抽一个指数分布的恢复时间，活到下一次突发的节点感染全部邻居，与论文的模拟方法相同。两个过程的时间单位分别是 $1/\\delta$ 和 $1/\\beta$。阈值附近有限网络上的传播很容易灭绝，这里用准稳态方法（de Oliveira 与 Dickman 2005）：每个时间单位把当前状态存入 ' + QS_SLOTS + ' 个槽位中的一个，灭绝时从中随机取一个状态继续。$\\rho_i$ 是预热 ' + BURN_IN + ' 个时间单位之后节点 $i$ 处于感染态的时间占比。$\\lambda_1$ 与 $x$ 用 $A+I$ 的幂迭代求得，平均场稳态用不动点迭代求得。',
+    'fx.warning': '<b>⚠ 注意</b>：论文的结论是平均场近似下、$N\\to\\infty$ 时的结论；有限网络上的模拟只能显示趋势。按论文，ER 这类稀疏、度分布均匀的网络上平均场系数不太准，幂律和指数度分布网络上与模拟吻合得很好。星形图上除中心外所有节点的 $x_i$ 相同，“最大的 5% 节点”包含中心和任选的一批叶节点。$\\tilde\\tau$ 越大，感染越接近铺满全网，局域化越不明显。',
+    'fx.refs': '参考：<br>' + REFS.join('<br>'),
+  },
+  en: {
+    'related': 'Related demos: <a href="./">SIS Epidemics on Networks</a> · <a href="pulse.html">Pulse Strategy for Suppressing Spreading on Networks</a> · <b>Network Localization Is Unalterable by Infections in Bursts</b> (this page)',
+    'title': 'Network Localization Is Unalterable by Infections in Bursts',
+    'subtitle': 'Markovian and bursty SIS side by side on the same network: bursts let infected nodes periodically infect all their neighbors, yet the infection stays on the same nodes',
+    'intro': 'Near the threshold, SIS spreading is often concentrated on a small part of the network. This is called localization: the prevalence tends to zero as the network grows. In mean-field theory, the near-threshold infection probability of each node is proportional to the component $x_i$ of the principal eigenvector $x$ of the adjacency matrix; if $x$ is concentrated on a few hubs, so is the spreading. The bursty SIS model lets every infected node synchronously infect all its healthy neighbors every $1/\\beta$, multiplying the number of infected nodes by up to $1+\\lambda_1$, and $\\lambda_1$ diverges with $N$ on scale-free networks. Liu and Van Mieghem (2019) showed under the mean-field approximation that even so, the near-threshold prevalence on a localized network still tends to zero. This page simulates both processes side by side on the same network, records the fraction of time each node is infected, and compares it with the principal eigenvector; the coefficient chart below shows how the mean-field coefficients change with $N$.',
+    'panel.network': 'Network', 'panel.type': 'Network type', 'panel.n': 'Nodes N', 'panel.k': 'Mean degree ⟨k⟩',
+    'net.ba': 'Scale-free (Barabási–Albert)', 'net.ua': 'Exponential degrees (uniform attachment)', 'net.star': 'Star graph',
+    'net.er': 'Random graph (Erdős–Rényi)', 'net.ws': 'Small world (Watts–Strogatz)',
+    'panel.process': 'Spreading', 'panel.tt': 'Distance to threshold τ̃ = τ/τ<sub>c</sub> − 1',
+    'panel.ttHint': 'Each process uses τ = (1+τ̃)τ<sub>c</sub> with its own mean-field threshold.',
+    'panel.color': 'Node color', 'color.state': 'Current infection state', 'color.rho': 'Fraction of time infected',
+    'panel.speed': 'Playback speed',
+    'btn.start': 'Start', 'btn.pause': 'Pause', 'btn.clear': 'Clear statistics', 'btn.regen': 'New network',
+    'panel.stats': 'Network & thresholds', 'stat.edges': 'Edges',
+    'stat.ipr': 'IPR h(x) = Σx<sub>i</sub><sup>4</sup>',
+    'stat.taucM': 'Markovian threshold 1/λ<sub>1</sub>',
+    'stat.taucB': 'Bursty threshold 1/ln(1+λ<sub>1</sub>)',
+    'stat.t': 'Time t', 'stat.window': 'Measured time', 'stat.restores': 'Quasi-stationary restores (Markov/bursty)',
+    'net.markov': 'Markovian SIS (each link infects at rate β)', 'net.burst': 'Bursty SIS (all healthy neighbors infected every 1/β)',
+    'foot.prev': 'Current prevalence {p}', 'foot.burn': '(the first {T} time units are burn-in and not measured)',
+    'chart.time': 'Prevalence over time',
+    'chart.scatter': 'Fraction of time infected ρ<sub>i</sub> vs x<sub>i</sub>/max x',
+    'legend.markov': 'Markovian SIS', 'legend.burst': 'Bursty SIS',
+    'legend.mfM': 'NIMFA y<sub>∞</sub>', 'legend.mfB': 'Bursty mean field y<sup>+</sup>, y<sup>−</sup>',
+    'axis.t': 't', 'axis.x': 'x_i / max x', 'axis.n': 'N',
+    'share.title': 'Share of all infected time held by the 5% of nodes with the largest x<sub>i</sub> <small>(5% if shared evenly)</small>',
+    'share.sim': 'Simulation', 'share.mf': 'Mean field (current τ̃)', 'share.corr': 'Correlation of ρ<sub>i</sub> with x<sub>i</sub> (simulation)',
+    'share.limit': 'Mean-field limit τ̃ → 0: Σ<sub>top</sub>x<sub>i</sub>/Σx<sub>i</sub> (same for both)',
+    'share.note': 'Near the threshold the infection profiles of both processes become proportional to x<sub>i</sub>, so both columns approach the same limit; as τ̃ grows, bursty SIS spreads the infection more widely and its share drops faster. With small τ̃ on BA and exponential-degree networks, both columns are well above 5% and grow with N.',
+    'chart.scale': 'Auxiliary: mean-field coefficients vs N <small>(current network type and ⟨k⟩, averaged over ' + SCALE_REPS + ' networks per N)</small>',
+    'legend.a': 'a (Markovian)', 'legend.amax': 'a<sub>max</sub> (after bursts)', 'legend.amin': 'a<sub>min</sub> (before bursts)',
+    'scale.running': 'Computing…',
+    'fx.title': 'Model & formulas',
+    'fx.model': '<b>The two processes</b>　In Markovian SIS, an infected node infects each healthy neighbor at rate $\\beta$ and is cured at rate $\\delta$, with $\\tau=\\beta/\\delta$. In bursty SIS, curing is unchanged and still happens at rate $\\delta$, but infections only happen at $t=1/\\beta,2/\\beta,\\dots$, when every infected node infects all its healthy neighbors. It is a limiting case of a non-Markovian SIS model. The mean-field equations are $$v_i\\Big(\\tfrac{n+1}{\\beta}\\Big)=u_i+(1-u_i)\\Big[1-\\prod_{j\\in\\mathcal N_i}(1-u_j)\\Big],\\quad u_i=e^{-\\delta/\\beta}\\,v_i\\Big(\\tfrac{n}{\\beta}\\Big)$$<div class="muted">$v_i$ is taken just after a burst and $u_i$ just before the next one.</div>',
+    'fx.threshold': '<b>Mean-field thresholds</b>　The NIMFA threshold of Markovian SIS is $\\tau_c=1/\\lambda_1$. Linearizing the bursty equation around $v=0$ gives $v\\mapsto e^{-\\delta/\\beta}(I+A)\\,v$; setting its largest eigenvalue to 1 gives $$\\tau_c^{(B)}=\\frac{1}{\\ln(1+\\lambda_1)}$$<div class="muted">On this page both processes use the same $\\tilde\\tau=\\tau/\\tau_c-1$, each relative to its own threshold. The linearized matrix $e^{-\\delta/\\beta}(I+A)$ has the same principal eigenvector $x$ as $A$, so near the threshold the mean-field infection probabilities of both processes point along $x$.</div>',
+    'fx.loc': '<b>Localization</b>　Near the threshold, the mean-field prevalence of Markovian SIS is $y_\\infty=a\\tilde\\tau+o(\\tilde\\tau)$, where $$a=\\frac{\\sum_i x_i}{N\\sum_i x_i^3},\\qquad \\sum_i x_i^2=1$$If $a\\to0$ as $N\\to\\infty$, the near-threshold prevalence tends to zero and the spreading is localized.<div class="muted">The paper follows the definition of Pastor-Satorras and Castellano: $x$ is localized if the IPR $h(x)=\\sum_i x_i^4=O(N^{-\\alpha})$ with $0\\le\\alpha&lt;1$, and delocalized only if $h(x)=O(N^{-1})$. A vanishing prevalence does not mean a finite number of infected nodes: on a star graph $a=O(1/\\sqrt N)$ while the number of infected nodes is $O(\\sqrt N)$.</div>',
+    'fx.amax': '<b>Bursts amplify only by $O(\\ln\\lambda_1)$</b>　The bursty prevalence is largest just after a burst and smallest just before one, and their ratio is at most $1+\\lambda_1$. Near the threshold $y^+=a_{\\max}\\tilde\\tau+o(\\tilde\\tau)$ and $y^-=a_{\\min}\\tilde\\tau+o(\\tilde\\tau)$, where $$a_{\\max}=\\frac{2(1+\\lambda_1)\\ln(1+\\lambda_1)}{\\lambda_1}\\,a,\\qquad a_{\\min}=\\frac{a_{\\max}}{1+\\lambda_1}$$<div class="muted">For large $\\lambda_1$, $a_{\\max}\\approx2\\ln(\\lambda_1)\\,a$. On a localized network $a=O(N^{-\\eta})$ and $\\ln\\lambda_1&lt;\\ln N$, so $a_{\\max}=O(N^{-\\eta}\\ln N)\\to0$: bursts cannot turn localized spreading into delocalized spreading.</div>',
+    'fx.impl': 'Implementation: both processes start with all nodes infected and run simultaneously on the same network, entirely in the browser. Markovian SIS is simulated exactly with the Gillespie algorithm, with $\\delta=1$. Bursty SIS uses $\\beta=1$: after each burst every infected node draws an exponential curing time, and the nodes that survive until the next burst infect all their neighbors, as in the simulations of the paper. The time units are $1/\\delta$ and $1/\\beta$ respectively. Near the threshold, spreading on a finite network easily dies out, so the quasi-stationary method of de Oliveira and Dickman (2005) is used: every time unit the current state is stored in one of ' + QS_SLOTS + ' slots, and on extinction the process continues from a randomly chosen stored state. $\\rho_i$ is the fraction of time node $i$ is infected after a burn-in of ' + BURN_IN + ' time units. $\\lambda_1$ and $x$ come from power iteration on $A+I$, and the mean-field steady states from fixed-point iteration.',
+    'fx.warning': '<b>⚠ Note</b>: the result of the paper holds under the mean-field approximation as $N\\to\\infty$; simulations on finite networks can only show the trend. According to the paper, the mean-field coefficients are inaccurate on sparse networks with homogeneous degrees such as ER graphs, and agree very well with simulations on power-law and exponential-degree networks. On a star graph all nodes except the center have the same $x_i$, so “the top 5% of nodes” are the center plus an arbitrary set of leaves. The larger $\\tilde\\tau$, the closer the infection comes to covering the whole network and the weaker the localization.',
+    'fx.refs': 'References:<br>' + REFS.join('<br>'),
+  }
+};
+
+let currentLang = localStorage.getItem('loc-viz-lang') || 'en';
+function tr(key, params) {
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || key;
+  if (params) for (const k in params) s = s.replace('{' + k + '}', params[k]);
+  return s;
+}
+function applyLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('loc-viz-lang', lang);
+  const dict = I18N[lang];
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = dict['title'];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  $('btn-run').textContent = tr(running ? 'btn.pause' : 'btn.start');
+  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise();
+  updateReadout();
+  redrawAll();
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+const CANVAS_FONT = '"Avenir Next", -apple-system, "PingFang SC", sans-serif';
+
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const newSeed = () => (Math.random() * 2 ** 31) | 0;
+
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, rect.width * dpr);
+  canvas.height = Math.max(1, rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+// ---------------------------------------------------------------------------
+// Network generation
+// ---------------------------------------------------------------------------
+function buildGraph(N, edgeSet) {
+  const adj = Array.from({ length: N }, () => []);
+  const edges = [];
+  for (const key of edgeSet) {
+    const i = Math.floor(key / N), j = key % N;
+    adj[i].push(j); adj[j].push(i); edges.push([i, j]);
+  }
+  return { N, adj, edges };
+}
+const edgeKey = (i, j, N) => (i < j ? i * N + j : j * N + i);
+
+function genER(N, k, rand) {
+  const p = k / (N - 1), set = new Set();
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) if (rand() < p) set.add(i * N + j);
+  return buildGraph(N, set);
+}
+
+// preferential = true: Barabási–Albert; false: uniform attachment (exponential degree distribution).
+function genGrowth(N, k, rand, preferential) {
+  const m = Math.max(1, Math.round(k / 2)), set = new Set(), pool = [];
+  for (let i = 0; i <= m; i++) for (let j = i + 1; j <= m; j++) { set.add(edgeKey(i, j, N)); pool.push(i, j); }
+  for (let v = m + 1; v < N; v++) {
+    const targets = new Set();
+    while (targets.size < m) targets.add(preferential ? pool[Math.floor(rand() * pool.length)] : Math.floor(rand() * v));
+    for (const u of targets) { set.add(edgeKey(u, v, N)); pool.push(u, v); }
+  }
+  return buildGraph(N, set);
+}
+
+function genWS(N, k, rand, rewire = 0.1) {
+  const half = Math.max(1, Math.round(k / 2)), set = new Set();
+  for (let i = 0; i < N; i++) for (let d = 1; d <= half; d++) set.add(edgeKey(i, (i + d) % N, N));
+  for (const key of Array.from(set)) {
+    if (rand() >= rewire) continue;
+    const i = Math.floor(key / N);
+    for (let tries = 0; tries < 20; tries++) {
+      const j = Math.floor(rand() * N);
+      const nk = edgeKey(i, j, N);
+      if (j !== i && !set.has(nk)) { set.delete(key); set.add(nk); break; }
+    }
+  }
+  return buildGraph(N, set);
+}
+
+function genStar(N) {
+  const set = new Set();
+  for (let i = 1; i < N; i++) set.add(edgeKey(0, i, N));
+  return buildGraph(N, set);
+}
+
+function generate(type, N, k, rand) {
+  if (type === 'ba') return genGrowth(N, k, rand, true);
+  if (type === 'ua') return genGrowth(N, k, rand, false);
+  if (type === 'star') return genStar(N);
+  if (type === 'ws') return genWS(N, k, rand);
+  return genER(N, k, rand);
+}
+
+// Fruchterman–Reingold layout in the unit square.
+function layoutGraph(g, rand) {
+  const { N, edges } = g;
+  const x = new Float64Array(N), y = new Float64Array(N);
+  for (let i = 0; i < N; i++) { x[i] = rand(); y[i] = rand(); }
+  const kf = Math.sqrt(1 / N);
+  const dx = new Float64Array(N), dy = new Float64Array(N);
+  const exact = N <= 400, iters = exact ? 250 : 180;
+  const repel = (i, j) => {
+    const ex = x[i] - x[j], ey = y[i] - y[j];
+    const d2 = ex * ex + ey * ey + 1e-9, f = (kf * kf) / d2;
+    dx[i] += ex * f; dy[i] += ey * f; dx[j] -= ex * f; dy[j] -= ey * f;
+  };
+  // Large graphs: grid variant of Fruchterman–Reingold, repulsion only within 2k.
+  const cs = 2 * kf, next = new Int32Array(N);
+  let temp = 0.1;
+  for (let it = 0; it < iters; it++) {
+    dx.fill(0); dy.fill(0);
+    if (exact) {
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) repel(i, j);
+    } else {
+      let mx = Infinity, my = Infinity, Mx = -Infinity, My = -Infinity;
+      for (let i = 0; i < N; i++) { mx = Math.min(mx, x[i]); my = Math.min(my, y[i]); Mx = Math.max(Mx, x[i]); My = Math.max(My, y[i]); }
+      const W = Math.floor((Mx - mx) / cs) + 1, H = Math.floor((My - my) / cs) + 1;
+      const head = new Int32Array(W * H).fill(-1), cell = new Int32Array(N);
+      for (let i = 0; i < N; i++) {
+        const c = Math.floor((y[i] - my) / cs) * W + Math.floor((x[i] - mx) / cs);
+        cell[i] = c; next[i] = head[c]; head[c] = i;
+      }
+      const cs2 = cs * cs;
+      for (let i = 0; i < N; i++) {
+        const cx = cell[i] % W, cy = (cell[i] - cx) / W;
+        for (let oy = -1; oy <= 1; oy++) {
+          const yy = cy + oy; if (yy < 0 || yy >= H) continue;
+          for (let ox = -1; ox <= 1; ox++) {
+            const xx = cx + ox; if (xx < 0 || xx >= W) continue;
+            for (let j = head[yy * W + xx]; j !== -1; j = next[j]) {
+              if (j <= i) continue;
+              const ex = x[i] - x[j], ey = y[i] - y[j];
+              if (ex * ex + ey * ey < cs2) repel(i, j);
+            }
+          }
+        }
+      }
+    }
+    for (const [i, j] of edges) {
+      const ex = x[i] - x[j], ey = y[i] - y[j];
+      const d = Math.sqrt(ex * ex + ey * ey) + 1e-9, f = d / kf;
+      dx[i] -= ex * f; dy[i] -= ey * f; dx[j] += ex * f; dy[j] += ey * f;
+    }
+    for (let i = 0; i < N; i++) {
+      dx[i] += (0.5 - x[i]) * 0.05 * N * kf; dy[i] += (0.5 - y[i]) * 0.05 * N * kf;
+      const d = Math.sqrt(dx[i] * dx[i] + dy[i] * dy[i]) + 1e-9, s = Math.min(d, temp) / d;
+      x[i] += dx[i] * s; y[i] += dy[i] * s;
+    }
+    temp = Math.max(0.002, temp * 0.97);
+  }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < N; i++) { x0 = Math.min(x0, x[i]); x1 = Math.max(x1, x[i]); y0 = Math.min(y0, y[i]); y1 = Math.max(y1, y[i]); }
+  for (let i = 0; i < N; i++) { x[i] = (x[i] - x0) / (x1 - x0 || 1); y[i] = (y[i] - y0) / (y1 - y0 || 1); }
+  return { x, y };
+}
+
+// ---------------------------------------------------------------------------
+// Spectral quantities and mean-field steady states
+// ---------------------------------------------------------------------------
+// Power iteration on A + I avoids oscillation on bipartite graphs such as the star.
+function principalEigen(g, maxIter = 5000) {
+  const { N, adj } = g;
+  let v = new Float64Array(N).fill(1 / Math.sqrt(N)), w = new Float64Array(N), lambda = 0;
+  for (let it = 0; it < maxIter; it++) {
+    for (let i = 0; i < N; i++) { let s = v[i]; for (const j of adj[i]) s += v[j]; w[i] = s; }
+    let dot = 0, norm = 0;
+    for (let i = 0; i < N; i++) { dot += v[i] * w[i]; norm += w[i] * w[i]; }
+    norm = Math.sqrt(norm);
+    for (let i = 0; i < N; i++) w[i] /= norm;
+    [v, w] = [w, v];
+    const next = dot - 1;
+    if (Math.abs(next - lambda) < 1e-10 * Math.max(1, next)) { lambda = next; break; }
+    lambda = next;
+  }
+  return { lambda, x: v };
+}
+
+function coefficients(g) {
+  const { lambda, x } = principalEigen(g);
+  let s1 = 0, s3 = 0, s4 = 0;
+  for (let i = 0; i < g.N; i++) { s1 += x[i]; s3 += x[i] ** 3; s4 += x[i] ** 4; }
+  const a = s1 / (g.N * s3);
+  const amax = 2 * (1 + lambda) * Math.log(1 + lambda) / lambda * a;
+  return { lambda, x, ipr: s4, a, amax, amin: amax / (1 + lambda) };
+}
+
+// NIMFA steady state with δ = 1: v_i = τ s_i / (1 + τ s_i), s_i = Σ_j a_ij v_j.
+function nimfaSteady(g, tau, maxIter = 3000) {
+  const { N, adj } = g;
+  let v = new Float64Array(N).fill(0.5), w = new Float64Array(N);
+  for (let it = 0; it < maxIter; it++) {
+    let diff = 0;
+    for (let i = 0; i < N; i++) {
+      let s = 0; for (const j of adj[i]) s += v[j];
+      w[i] = tau * s / (1 + tau * s); diff = Math.max(diff, Math.abs(w[i] - v[i]));
+    }
+    [v, w] = [w, v];
+    if (diff < 1e-11) break;
+  }
+  return v;
+}
+
+// Bursty mean-field map with β = 1, δ = 1/τ; returns v just after a burst.
+function burstySteady(g, tau, maxIter = 3000) {
+  const { N, adj } = g, decay = Math.exp(-1 / tau);
+  let v = new Float64Array(N).fill(0.5), w = new Float64Array(N);
+  const u = new Float64Array(N);
+  for (let it = 0; it < maxIter; it++) {
+    for (let i = 0; i < N; i++) u[i] = v[i] * decay;
+    let diff = 0;
+    for (let i = 0; i < N; i++) {
+      let prod = 1; for (const j of adj[i]) prod *= 1 - u[j];
+      w[i] = u[i] + (1 - u[i]) * (1 - prod); diff = Math.max(diff, Math.abs(w[i] - v[i]));
+    }
+    [v, w] = [w, v];
+    if (diff < 1e-11) break;
+  }
+  return v;
+}
+
+// ---------------------------------------------------------------------------
+// Quasi-stationary memory: on extinction, continue from a stored active state.
+// ---------------------------------------------------------------------------
+function makeMemory(rand) {
+  const slots = [];
+  return {
+    store(nodes) {
+      if (slots.length < QS_SLOTS) slots.push(nodes);
+      else slots[Math.floor(rand() * QS_SLOTS)] = nodes;
+    },
+    draw(N) {
+      return slots.length ? slots[Math.floor(rand() * slots.length)] : Array.from({ length: N }, (_, i) => i);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Markovian SIS (Gillespie, δ = 1) with per-node infected-time accounting.
+// ---------------------------------------------------------------------------
+function makeMarkov(g, rand) {
+  const { N, adj } = g;
+  const infected = new Uint8Array(N), infNbrs = new Int32Array(N);
+  const list = new Int32Array(N), pos = new Int32Array(N).fill(-1);
+  const since = new Float64Array(N), acc = new Float64Array(N);
+  const memory = makeMemory(rand);
+  const S = { infected, nI: 0, siEdges: 0, t: 0, statStart: 0, restores: 0, nextStore: 1, hist: [] };
+
+  // Fenwick tree over susceptible nodes, weighted by their number of infected neighbors,
+  // so the node to infect is drawn in O(log N).
+  const tree = new Int32Array(N + 1);
+  let top = 1; while (top * 2 <= N) top *= 2;
+  const fenAdd = (i, d) => { for (i++; i <= N; i += i & -i) tree[i] += d; };
+  const fenFind = r => {
+    let idx = 0;
+    for (let b = top; b > 0; b >>= 1) {
+      const nx = idx + b;
+      if (nx <= N && tree[nx] <= r) { idx = nx; r -= tree[nx]; }
+    }
+    return idx;
+  };
+
+  const infect = v => {
+    if (infected[v]) return;
+    infected[v] = 1; pos[v] = S.nI; list[S.nI++] = v; since[v] = S.t;
+    S.siEdges -= infNbrs[v];
+    if (infNbrs[v]) fenAdd(v, -infNbrs[v]);
+    for (const u of adj[v]) { infNbrs[u]++; if (!infected[u]) { S.siEdges++; fenAdd(u, 1); } }
+  };
+  const recover = v => {
+    if (!infected[v]) return;
+    infected[v] = 0;
+    acc[v] += S.t - Math.max(since[v], S.statStart);
+    const p = pos[v], last = list[--S.nI];
+    list[p] = last; pos[last] = p; pos[v] = -1;
+    S.siEdges += infNbrs[v];
+    if (infNbrs[v]) fenAdd(v, infNbrs[v]);
+    for (const u of adj[v]) { infNbrs[u]--; if (!infected[u]) { S.siEdges--; fenAdd(u, -1); } }
+  };
+  for (let v = 0; v < N; v++) infect(v);
+
+  S.advance = (target, tau) => {
+    let events = 0;
+    while (events < 400000) {
+      const total = S.nI + tau * S.siEdges;
+      const dt = -Math.log(1 - rand()) / total;
+      if (S.t + dt > target) { S.t = target; break; }
+      S.t += dt; events++;
+      while (S.t >= S.nextStore) { memory.store(Array.from(list.subarray(0, S.nI))); S.nextStore += 1; }
+      if (rand() * total < S.nI) {
+        recover(list[Math.floor(rand() * S.nI)]);
+        if (S.nI === 0) { S.restores++; for (const v of memory.draw(N)) infect(v); }
+      } else infect(fenFind(Math.floor(rand() * S.siEdges)));
+    }
+    S.hist.push([S.t, S.nI / N]);
+  };
+  S.resetStats = () => { S.statStart = S.t; acc.fill(0); S.restores = 0; };
+  S.window = () => S.t - S.statStart;
+  S.rho = () => {
+    const T = S.window(), r = new Float64Array(N);
+    if (T <= 0) return r;
+    for (let v = 0; v < N; v++) r[v] = (acc[v] + (infected[v] ? S.t - Math.max(since[v], S.statStart) : 0)) / T;
+    return r;
+  };
+  S.isInfected = v => infected[v] === 1;
+  S.count = () => S.nI;
+  return S;
+}
+
+// ---------------------------------------------------------------------------
+// Bursty SIS with β = 1: bursts at t = 1, 2, ...; curing at rate δ = 1/τ in between.
+// Every infected node draws an exponential curing time right after a burst
+// (curing is memoryless, so redrawing for nodes that were already infected is exact).
+// ---------------------------------------------------------------------------
+function makeBursty(g, rand) {
+  const { N, adj } = g;
+  const inPlus = new Uint8Array(N), cure = new Float64Array(N), acc = new Float64Array(N);
+  const plus = new Int32Array(N), mark = new Uint8Array(N);
+  const memory = makeMemory(rand);
+  const B = { n: 0, t: 0, nPlus: 0, statStart: 0, periods: 0, restores: 0, hist: [] };
+
+  const startPeriod = (nodes, delta) => {
+    inPlus.fill(0); B.nPlus = 0;
+    for (const v of nodes) { inPlus[v] = 1; plus[B.nPlus++] = v; cure[v] = B.n - Math.log(1 - rand()) / delta; }
+  };
+  B.count = () => { let c = 0; for (let q = 0; q < B.nPlus; q++) if (cure[plus[q]] > B.t) c++; return c; };
+  B.isInfected = v => inPlus[v] === 1 && cure[v] > B.t;
+
+  B.init = delta => { startPeriod(Array.from({ length: N }, (_, i) => i), delta); B.hist.push([0, 1]); };
+  B.advance = (target, delta) => {
+    while (B.n + 1 <= target) {
+      const end = B.n + 1, survivors = [];
+      for (let q = 0; q < B.nPlus; q++) {
+        const v = plus[q];
+        if (B.n >= B.statStart) acc[v] += Math.min(cure[v], end) - B.n;
+        if (cure[v] >= end) survivors.push(v);
+      }
+      if (B.n >= B.statStart) B.periods++;
+      B.n = end; B.t = end;
+      B.hist.push([end, survivors.length / N]);
+      let seeds = survivors;
+      if (!survivors.length) { B.restores++; seeds = memory.draw(N); }
+      else memory.store(survivors);
+      mark.fill(0);
+      const next = [];
+      for (const v of seeds) {
+        if (!mark[v]) { mark[v] = 1; next.push(v); }
+        for (const u of adj[v]) if (!mark[u]) { mark[u] = 1; next.push(u); }
+      }
+      startPeriod(next, delta);
+      B.hist.push([end, next.length / N]);
+    }
+    B.t = target;
+    B.hist.push([B.t, B.count() / N]);
+  };
+  B.resetStats = () => { B.statStart = B.n + 1; B.periods = 0; acc.fill(0); B.restores = 0; };
+  B.window = () => B.periods;
+  B.rho = () => {
+    const r = new Float64Array(N);
+    if (B.periods > 0) for (let v = 0; v < N; v++) r[v] = acc[v] / B.periods;
+    return r;
+  };
+  return B;
+}
+
+// ---------------------------------------------------------------------------
+// App state
+// ---------------------------------------------------------------------------
+let graph = null, layout = null, stats = null, simM = null, simB = null;
+let running = false, clock = 0, statsStarted = false, mf = null, topSet = null;
+let scale = { token: 0, points: [], done: false };
+
+const currentTT = () => +$('tt').value;
+const tauMarkov = () => (1 + currentTT()) / stats.lambda;
+const tauBursty = () => (1 + currentTT()) / Math.log(1 + stats.lambda);
+
+function regenerate() {
+  const rand = makeRng(newSeed());
+  const N = +$('n').value, k = +$('k').value, type = $('net-type').value;
+  graph = generate(type, N, k, rand);
+  layout = layoutGraph(graph, rand);
+  const deg = graph.adj.map(a => a.length);
+  const meanDeg = deg.reduce((a, b) => a + b, 0) / N;
+  stats = { deg, meanDeg, ...coefficients(graph) };
+  const order = Array.from({ length: N }, (_, i) => i).sort((i, j) => stats.x[j] - stats.x[i]);
+  topSet = order.slice(0, Math.max(1, Math.round(TOP_FRACTION * N)));
+  $('s-edges').textContent = graph.edges.length;
+  $('s-lambda').textContent = stats.lambda.toFixed(3);
+  $('s-ipr').textContent = stats.ipr.toFixed(4);
+  $('s-taucm').textContent = (1 / stats.lambda).toFixed(4);
+  $('s-taucb').textContent = (1 / Math.log(1 + stats.lambda)).toFixed(4);
+  updateMeanField();
+  restart();
+  computeScaling();
+}
+
+function restart() {
+  const seed = newSeed();
+  simM = makeMarkov(graph, makeRng(seed));
+  simB = makeBursty(graph, makeRng(seed + 1));
+  simB.init(1 / tauBursty());
+  simM.hist.push([0, 1]);
+  clock = 0; statsStarted = false;
+  updateReadout();
+  redrawAll();
+}
+
+function clearStats() {
+  simM.resetStats(); simB.resetStats();
+  statsStarted = clock >= BURN_IN;
+  updateReadout(); redrawAll();
+}
+
+function updateMeanField() {
+  const vN = nimfaSteady(graph, tauMarkov());
+  const tauB = tauBursty(), vB = burstySteady(graph, tauB);
+  const delta = 1 / tauB, decay = Math.exp(-delta);
+  // Time-averaged bursty profile: v_i^+ e^{-δt} averaged over one period.
+  const rhoB = vB.map(v => v * (1 - decay) / delta);
+  const mean = v => v.reduce((a, b) => a + b, 0) / v.length;
+  mf = { yM: mean(vN), yPlus: mean(vB), yMinus: mean(vB) * decay, shareM: topShare(vN), shareB: topShare(rhoB) };
+}
+
+function topShare(r) {
+  let tot = 0, top = 0;
+  for (let i = 0; i < r.length; i++) tot += r[i];
+  for (const i of topSet) top += r[i];
+  return tot > 0 ? top / tot : NaN;
+}
+
+function correlation(a, b) {
+  const n = a.length;
+  let ma = 0, mb = 0;
+  for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; }
+  ma /= n; mb /= n;
+  let c = 0, sa = 0, sb = 0;
+  for (let i = 0; i < n; i++) { c += (a[i] - ma) * (b[i] - mb); sa += (a[i] - ma) ** 2; sb += (b[i] - mb) ** 2; }
+  return sa > 0 && sb > 0 ? c / Math.sqrt(sa * sb) : NaN;
+}
+
+const pct = v => (isFinite(v) ? (100 * v).toFixed(1) + '%' : '–');
+
+function updateReadout() {
+  if (!simM) return;
+  $('s-t').textContent = clock.toFixed(1);
+  $('s-window').textContent = statsStarted ? simM.window().toFixed(0) + ' / ' + simB.window() : '–';
+  $('s-restores').textContent = simM.restores + ' / ' + simB.restores;
+  const burn = statsStarted ? '' : ' ' + tr('foot.burn', { T: BURN_IN });
+  $('foot-m').textContent = tr('foot.prev', { p: pct(simM.count() / graph.N) }) + burn;
+  $('foot-b').textContent = tr('foot.prev', { p: pct(simB.count() / graph.N) }) + burn;
+  $('sh-x').textContent = pct(topShare(stats.x));
+  $('sh-mf-m').textContent = pct(mf.shareM);
+  $('sh-mf-b').textContent = pct(mf.shareB);
+  if (statsStarted && simM.window() > 0 && simB.window() > 0) {
+    const rM = simM.rho(), rB = simB.rho();
+    $('sh-m').textContent = pct(topShare(rM));
+    $('sh-b').textContent = pct(topShare(rB));
+    $('cor-m').textContent = correlation(rM, stats.x).toFixed(3);
+    $('cor-b').textContent = correlation(rB, stats.x).toFixed(3);
+  } else {
+    ['sh-m', 'sh-b', 'cor-m', 'cor-b'].forEach(id => { $(id).textContent = '–'; });
+  }
+}
+
+function setRunning(on) {
+  running = on;
+  $('btn-run').textContent = tr(on ? 'btn.pause' : 'btn.start');
+}
+
+// ---------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------
+function nodeRadius(i) {
+  const base = Math.max(1.3, Math.min(6, 45 / Math.sqrt(graph.N)));
+  return base * (0.7 + 0.3 * Math.min(4, Math.sqrt(stats.deg[i] / Math.max(stats.meanDeg, 1))));
+}
+
+function mix(c1, c2, t) {
+  const p = c => [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
+  const a = p(c1), b = p(c2);
+  return 'rgb(' + a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(',') + ')';
+}
+
+function drawNetwork(canvasId, sim) {
+  const { ctx, w, h } = setupCanvas($(canvasId));
+  ctx.clearRect(0, 0, w, h);
+  if (!graph) return;
+  const pad = 10, s = Math.min(w, h) - 2 * pad, ox = (w - s) / 2, oy = (h - s) / 2;
+  const X = x => ox + x * s, Y = y => oy + y * s;
+  ctx.strokeStyle = cssVar('--edge'); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const [i, j] of graph.edges) { ctx.moveTo(X(layout.x[i]), Y(layout.y[i])); ctx.lineTo(X(layout.x[j]), Y(layout.y[j])); }
+  ctx.stroke();
+  const cI = cssVar('--infected'), cS = cssVar('--susceptible');
+  const byRho = $('color-mode').value === 'rho';
+  let rho = null, rmax = 0;
+  if (byRho) { rho = sim.rho(); for (const r of rho) rmax = Math.max(rmax, r); }
+  // Draw low values first so that hot nodes stay on top.
+  const order = byRho && rmax > 0 ? Array.from(rho.keys()).sort((a, b) => rho[a] - rho[b]) : null;
+  for (let q = 0; q < graph.N; q++) {
+    const i = order ? order[q] : q;
+    let fill, stroke;
+    if (byRho) { const t = rmax > 0 ? rho[i] / rmax : 0; fill = mix(cS, cI, t); stroke = t > 0.5 ? fill : '#bdb5a6'; }
+    else { const on = sim.isInfected(i); fill = on ? cI : cS; stroke = on ? cI : '#bdb5a6'; }
+    ctx.beginPath();
+    ctx.arc(X(layout.x[i]), Y(layout.y[i]), nodeRadius(i), 0, 2 * Math.PI);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke();
+  }
+}
+
+function gridY(ctx, w, h, pad, ymax, digits) {
+  ctx.strokeStyle = cssVar('--grid'); ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i <= 4; i++) { const y = pad.t + i * (h - pad.t - pad.b) / 4; ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); }
+  ctx.stroke();
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT;
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + i * (h - pad.t - pad.b) / 4;
+    ctx.fillText((ymax * (1 - i / 4)).toFixed(digits), pad.l - 6, y + 4);
+  }
+  ctx.textAlign = 'left';
+}
+
+function niceMax(v) {
+  if (!(v > 0)) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 4 ? 4 : m <= 8 ? 8 : 10) * e;
+}
+
+function drawTimeChart() {
+  const { ctx, w, h } = setupCanvas($('c-time'));
+  ctx.clearRect(0, 0, w, h);
+  if (!simM) return;
+  const pad = { l: 46, r: 12, t: 10, b: 26 };
+  const t1 = Math.max(TIME_WINDOW, clock), t0 = t1 - TIME_WINDOW;
+  let vmax = Math.max(mf.yM, mf.yPlus);
+  for (const hist of [simM.hist, simB.hist]) for (const [t, v] of hist) if (t >= t0 && t > 2) vmax = Math.max(vmax, v);
+  const ymax = Math.min(1, niceMax(vmax * 1.05));
+  gridY(ctx, w, h, pad, ymax, ymax < 0.1 ? 3 : 2);
+  const X = t => pad.l + ((t - t0) / TIME_WINDOW) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - Math.min(v / ymax, 1.02) * (h - pad.t - pad.b);
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT;
+  ctx.textAlign = 'left'; ctx.fillText(t0.toFixed(0), pad.l, h - 8);
+  ctx.textAlign = 'center'; ctx.fillText(tr('axis.t'), (pad.l + w - pad.r) / 2, h - 8);
+  ctx.textAlign = 'right'; ctx.fillText(t1.toFixed(0), w - pad.r, h - 8);
+  ctx.textAlign = 'left';
+  if (clock < BURN_IN && t0 === 0) {
+    ctx.fillStyle = cssVar('--grid');
+    ctx.fillRect(X(0), pad.t, X(BURN_IN) - X(0), h - pad.t - pad.b);
+  }
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t - 2, w - pad.l - pad.r, h - pad.t - pad.b + 4); ctx.clip();
+  const hline = (v, color) => {
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pad.l, Y(v)); ctx.lineTo(w - pad.r, Y(v)); ctx.stroke(); ctx.restore();
+  };
+  hline(mf.yM, cssVar('--markov'));
+  hline(mf.yPlus, cssVar('--burst'));
+  hline(mf.yMinus, cssVar('--burst'));
+  const curve = (hist, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    let started = false;
+    for (const [t, v] of hist) {
+      if (t < t0 - 1) continue;
+      if (!started) { ctx.moveTo(X(t), Y(v)); started = true; } else ctx.lineTo(X(t), Y(v));
+    }
+    ctx.stroke();
+  };
+  curve(simB.hist, cssVar('--burst'));
+  curve(simM.hist, cssVar('--markov'));
+  ctx.restore();
+}
+
+function drawScatter() {
+  const { ctx, w, h } = setupCanvas($('c-scatter'));
+  ctx.clearRect(0, 0, w, h);
+  if (!simM) return;
+  const pad = { l: 46, r: 12, t: 10, b: 26 };
+  const ready = statsStarted && simM.window() > 0 && simB.window() > 0;
+  const rM = ready ? simM.rho() : null, rB = ready ? simB.rho() : null;
+  let vmax = 0;
+  if (ready) for (let i = 0; i < graph.N; i++) vmax = Math.max(vmax, rM[i], rB[i]);
+  const ymax = Math.min(1, niceMax(vmax || 1));
+  gridY(ctx, w, h, pad, ymax, 2);
+  let xmax = 0; for (const v of stats.x) xmax = Math.max(xmax, v);
+  const X = x => pad.l + (x / xmax) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - (v / ymax) * (h - pad.t - pad.b);
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT;
+  ctx.textAlign = 'left'; ctx.fillText('0', pad.l, h - 8);
+  ctx.textAlign = 'center'; ctx.fillText(tr('axis.x'), (pad.l + w - pad.r) / 2, h - 8);
+  ctx.textAlign = 'right'; ctx.fillText('1', w - pad.r, h - 8);
+  ctx.textAlign = 'left';
+  if (!ready) return;
+  const dots = (r, color) => {
+    ctx.fillStyle = color; ctx.globalAlpha = 0.55;
+    for (let i = 0; i < graph.N; i++) { ctx.beginPath(); ctx.arc(X(stats.x[i]), Y(r[i]), 2.4, 0, 2 * Math.PI); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  };
+  dots(rM, cssVar('--markov'));
+  dots(rB, cssVar('--burst'));
+}
+
+function drawScaleChart() {
+  const { ctx, w, h } = setupCanvas($('c-scale'));
+  ctx.clearRect(0, 0, w, h);
+  const pad = { l: 46, r: 12, t: 10, b: 26 };
+  const pts = scale.points;
+  let vmax = 0; for (const p of pts) vmax = Math.max(vmax, p.amax);
+  const ymax = niceMax(vmax * 1.05 || 1);
+  gridY(ctx, w, h, pad, ymax, 2);
+  const lx0 = Math.log(SCALE_NS[0]), lx1 = Math.log(SCALE_NS[SCALE_NS.length - 1]);
+  const X = n => pad.l + ((Math.log(n) - lx0) / (lx1 - lx0)) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - (v / ymax) * (h - pad.t - pad.b);
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '12px ' + CANVAS_FONT; ctx.textAlign = 'center';
+  for (const n of SCALE_NS) ctx.fillText(String(n), X(n), h - 8);
+  ctx.textAlign = 'left';
+  const series = (key, color, dashed) => {
+    ctx.save(); if (dashed) ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    pts.forEach((p, i) => { if (i === 0) ctx.moveTo(X(p.n), Y(p[key])); else ctx.lineTo(X(p.n), Y(p[key])); });
+    ctx.stroke(); ctx.restore();
+    ctx.fillStyle = color;
+    for (const p of pts) { ctx.beginPath(); ctx.arc(X(p.n), Y(p[key]), 3, 0, 2 * Math.PI); ctx.fill(); }
+  };
+  series('a', cssVar('--markov'), false);
+  series('amax', cssVar('--burst'), false);
+  series('amin', cssVar('--burst'), true);
+  // Current network.
+  if (graph) {
+    ctx.save(); ctx.setLineDash([2, 3]); ctx.strokeStyle = cssVar('--gold'); ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(X(graph.N), pad.t); ctx.lineTo(X(graph.N), h - pad.b); ctx.stroke(); ctx.restore();
+  }
+}
+
+function redrawAll() {
+  if (!graph || !simM) return;
+  drawNetwork('net-m', simM); drawNetwork('net-b', simB);
+  drawTimeChart(); drawScatter(); drawScaleChart();
+}
+window.addEventListener('resize', redrawAll);
+
+// ---------------------------------------------------------------------------
+// Coefficients vs N (mean field), computed in the background.
+// ---------------------------------------------------------------------------
+function computeScaling() {
+  const token = ++scale.token, type = $('net-type').value, k = +$('k').value;
+  scale.points = []; scale.done = false;
+  $('scale-status').textContent = tr('scale.running');
+  let idx = 0;
+  const next = () => {
+    if (token !== scale.token) return;
+    if (idx >= SCALE_NS.length) { scale.done = true; $('scale-status').textContent = ''; drawScaleChart(); return; }
+    const n = SCALE_NS[idx];
+    let a = 0, amax = 0, amin = 0;
+    for (let r = 0; r < SCALE_REPS; r++) {
+      const c = coefficients(generate(type, n, k, makeRng(newSeed())));
+      a += c.a; amax += c.amax; amin += c.amin;
+    }
+    scale.points.push({ n, a: a / SCALE_REPS, amax: amax / SCALE_REPS, amin: amin / SCALE_REPS });
+    drawScaleChart();
+    idx++;
+    setTimeout(next, 0);
+  };
+  setTimeout(next, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Animation loop
+// ---------------------------------------------------------------------------
+function trimHist(hist) {
+  const cut = clock - TIME_WINDOW - 2;
+  let i = 0; while (i < hist.length && hist[i][0] < cut) i++;
+  if (i > 0) hist.splice(0, i);
+}
+
+let lastFrame = performance.now(), frameCount = 0;
+function frame(now) {
+  const dtReal = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (running) {
+    clock += dtReal * +$('speed').value;
+    simM.advance(clock, tauMarkov());
+    simB.advance(clock, 1 / tauBursty());
+    if (!statsStarted && clock >= BURN_IN) { simM.resetStats(); simB.resetStats(); statsStarted = true; }
+    trimHist(simM.hist); trimHist(simB.hist);
+    drawNetwork('net-m', simM); drawNetwork('net-b', simB);
+    drawTimeChart();
+    if (frameCount++ % 6 === 0) { updateReadout(); drawScatter(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------------------
+// Wiring
+// ---------------------------------------------------------------------------
+function syncKEnabled() {
+  const star = $('net-type').value === 'star';
+  $('k').disabled = star;
+  $('k-label').classList.toggle('disabled', star);
+}
+
+$('n').oninput = e => { $('n-val').textContent = e.target.value; };
+$('k').oninput = e => { $('k-val').textContent = e.target.value; };
+$('n').onchange = regenerate;
+$('k').onchange = regenerate;
+$('net-type').onchange = () => { syncKEnabled(); regenerate(); };
+$('tt').oninput = e => { $('tt-val').textContent = (+e.target.value).toFixed(2); };
+$('tt').onchange = () => { updateMeanField(); clearStats(); };
+$('speed').oninput = e => { $('speed-val').textContent = e.target.value + '×'; };
+$('color-mode').onchange = () => { drawNetwork('net-m', simM); drawNetwork('net-b', simB); };
+$('btn-run').onclick = () => setRunning(!running);
+$('btn-clear').onclick = clearStats;
+$('btn-regen').onclick = regenerate;
+document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
+
+syncKEnabled();
+regenerate();
+applyLang(currentLang);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
